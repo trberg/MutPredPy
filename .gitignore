@@ -1,3 +1,10 @@
+# data files
+inputs/
+intermediates/
+scores/
+MutPredPy/__pycache__/
+resources/Homo_sapiens.GRCh38.combined.pep.all.fa
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -10,6 +17,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
+mutpredpy.egg-info/
 dist/
 downloads/
 eggs/
