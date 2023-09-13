@@ -79,8 +79,10 @@ def collect_scores():
         score_df.append(data)
         cur_file_num += 1
 
-    merged_df =  pd.concat(score_df)
     print ("")
+    merged_df =  pd.concat(score_df)
+    print ("Outputs merged")
+    
     key_columns = ["ensembl_protein_id","ensembl_transcript_id","gene_symbol","hgvsp"]
     for col in key_columns:
         if col not in merged_df.columns:
