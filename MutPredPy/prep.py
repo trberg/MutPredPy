@@ -78,8 +78,11 @@ class MutPredpy:
 
     def set_intermediate_directory(self):
         
-        if not os.path.exists(f"{self.__intermediate_dir}"):
-            os.mkdir(f"{self.__intermediate_dir}")
+        if self.dry_run:
+            print (f"(Dry Run) {self.__intermediate_dir} created")
+        else:
+            if not os.path.exists(f"{self.__intermediate_dir}"):
+                os.mkdir(f"{self.__intermediate_dir}")
 
         return self.__intermediate_dir
     
@@ -88,11 +91,17 @@ class MutPredpy:
     def set_faa_output(self):
         faa_dir = f"{self.__intermediate_dir}/faa"
         if not os.path.exists(f"{faa_dir}"):
-            os.mkdir(f"{faa_dir}")
+            if self.dry_run:
+                print (f"(Dry Run) {faa_dir} created")
+            else:
+                os.mkdir(f"{faa_dir}")
 
         project_output = f"{self.__intermediate_dir}/faa/{self.__project}"
         if not os.path.exists(f"{project_output}"):
-            os.mkdir(f"{project_output}")
+            if self.dry_run:
+                print (f"(Dry Run) {project_output} created")
+            else:
+                os.mkdir(f"{project_output}")
 
         return project_output
 
@@ -343,11 +352,9 @@ class MutPredpy:
         threshold = self.get_time()
         variable  = "Time Estimate (hrs)"
         
-        if self.dry_run:
-            pass
-        else:
-            self.set_intermediate_directory()
-            self.set_faa_output()
+        
+        self.set_intermediate_directory()
+        self.set_faa_output()
 
         for index,row in data.iterrows():
 
