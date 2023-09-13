@@ -3,9 +3,10 @@ import argparse
 import numpy as np
 import os
 
-import prep
-import status
-import merge
+
+from . import prep
+from . import status
+from . import merge
 
 
 def time_minimum(x):

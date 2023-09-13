@@ -6,8 +6,8 @@ import os
 import re
 
 
-import fasta
-import lsf
+from . import fasta
+from . import lsf
 
 class MutPredpy:
     def __init__(self, input, project, time, dry_run, canonical):
