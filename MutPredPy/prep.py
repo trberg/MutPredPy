@@ -15,7 +15,7 @@ class MutPredpy:
         self.__intermediate_dir = "intermediates"
         self.__project = project
         self.__input = self.input_path(input)
-        self.__base = input.split(".")[0].split("/")[-1]
+        self.__base = input.split("/")[-1].split(".")[0]
         self.__time = time
 
         self.dry_run = dry_run
@@ -260,7 +260,7 @@ class MutPredpy:
         scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
         
         data = data.merge(scores, on="hgvsp", how="left")
-        
+
         data = data[data["MutPred2 score"].isna()]
 
         data = data.drop("MutPred2 score", axis=1)
@@ -290,7 +290,8 @@ class MutPredpy:
 
     def write_sequence_to_file(self, number, file_number, header, sequence):
 
-        output_file = f"intermediates/faa/{self.__project}/{self.__base}.missense_{file_number}.faa"
+        output_file = f"{self.__intermediate_dir}/faa/{self.__project}/{self.__base}.missense_{file_number}.faa"
+        print (f"Writing > {output_file}")
         if number == 0:
             #if os.path.exists(output_file):
             output = open(output_file, "w")
@@ -510,6 +511,7 @@ if __name__ == "__main__":
     time    = args.time
     dry_run = args.dry_run
     canonical = args.canonical
+
     
     mut = MutPredpy(
         input=input,
