@@ -15,8 +15,10 @@ def write_output(data, dry_run):
 
 
 def existing_scores():
-
-    scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")
+    if os.path.exists("scores/MutPred2.tsv"):   
+        scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")
+    else:
+        scores = pd.DataFrame()
     
     return scores
 
@@ -64,7 +66,7 @@ def collect_scores():
                 if len(data) > 0:
                     #print (data)
                     data[cols] = data["ID"].str.split("|",expand=True)
-                    data["hgvsp"] = data["ensembl_protein_id"] + ":" + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
+                    data["hgvsp"] = data["ensembl_protein_id"] + ":p." + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
                     
                     try:
                         data["Molecular Mechanism"] = data["Molecular mechanisms with Pr >= 0.01 and P < 0.05"]
