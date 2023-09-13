@@ -260,10 +260,9 @@ class MutPredpy:
         scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
         
         data = data.merge(scores, on="hgvsp", how="left")
-        print (data)
+        
         data = data[data["MutPred2 score"].isna()]
-        print (data)
-        exit()
+
         data = data.drop("MutPred2 score", axis=1)
         
         return data
