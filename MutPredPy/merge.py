@@ -5,9 +5,12 @@ from . import fasta
 
 
 
-def write_output(data):
-    print (f"Writing scores to > {os.getcwd()}/scores/MutPred2.tsv")
-    #data.to_csv("scores/MutPred2.tsv", sep="\t", index=False)
+def write_output(data, dry_run):
+    if dry_run:
+        print (f"(Dry Run) Would write scores to > {os.getcwd()}/scores/MutPred2.tsv")
+    else:
+        print (f"Writing scores to > {os.getcwd()}/scores/MutPred2.tsv")
+        data.to_csv("scores/MutPred2.tsv", sep="\t", index=False)
 
 
 
@@ -94,7 +97,7 @@ def collect_scores():
 
 
 
-def merge():
+def merge(dry_run):
 
     merged_df = collect_scores()
     scores = existing_scores()
@@ -105,5 +108,5 @@ def merge():
 
     added_scores = len(merged_df) - prev_scores
 
-    write_output(merged_df)
+    write_output(merged_df, dry_run)
     print (f"{added_scores} scored mutations added.")
