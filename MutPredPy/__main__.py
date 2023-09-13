@@ -67,11 +67,11 @@ def build_parser():
                 help="Target time in hours to run the jobs"
             )
     parser_mutpredPrepare.add_argument(
-                '--input', type=str, nargs=1,
+                '--input', type=str, nargs='?',
                 help='The name of the input filename that is located in the data folder'
             )
     parser_mutpredPrepare.add_argument(
-                '--project', type=str, nargs=1,
+                '--project', type=str, nargs='?',
                 help='The name of the project for organization purposes'
             )
     parser_mutpredPrepare.add_argument(
