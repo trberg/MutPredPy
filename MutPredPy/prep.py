@@ -468,7 +468,7 @@ class MutPredpy:
             exit()
 
 
-'''
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Take a list of chromosomal variants, Ensembl protein mutations, or other formats and output faa protein sequence files ready for MutPred2 intake.')
@@ -507,4 +507,4 @@ if __name__ == "__main__":
         canonical=canonical
     )
     
-    mut.prepare_mutpred_input()'''
+    mut.prepare_mutpred_input()

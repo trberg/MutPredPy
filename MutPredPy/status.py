@@ -67,11 +67,9 @@ class Status:
 
         
         faa_dir = f"{intermediate}/faa/{project}"
-        print (os.path.abspath(faa_dir))
         f_reg = re.compile(f"{base}.missense_\d+.faa")
 
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
-        print (faa_files)
 
         faa = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
         
@@ -98,7 +96,8 @@ class Status:
         summary = summary.sort_values("index")
 
         for index, row in summary.iterrows():
-            print (f"{base}.missense_{row['index']}\t{row['percent']}%")
+            if row['percent'] < 100:
+                print (f"{base}.missense_{row['index']}\t{row['percent']}%")
 
         print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
