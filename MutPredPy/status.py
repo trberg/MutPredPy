@@ -5,8 +5,7 @@ import argparse
 import re
 import os
 
-#import fasta
-from . import fasta
+import fasta
 
 
 class Status:
@@ -46,7 +45,7 @@ class Status:
             exit()
 
 
-    
+
     def read_mutpred_output(self, file):
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]

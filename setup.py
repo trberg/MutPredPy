@@ -2,6 +2,7 @@
 import os
 from setuptools import setup
 
+
 # figure out the version
 about = {}
 here = os.path.abspath(os.path.dirname(__file__))

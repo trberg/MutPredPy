@@ -3,9 +3,9 @@ import argparse
 import numpy as np
 import os
 
-from . import ( prep,
-                status,
-                merge)
+import prep
+import status
+import merge
 
 
 def time_minimum(x):
@@ -39,7 +39,7 @@ def command_status(args):
 
 
 def command_merge(args):
-    
+
     merge.merge()
 
 
