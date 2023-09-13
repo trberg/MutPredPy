@@ -78,10 +78,10 @@ class MutPredpy:
 
     def set_intermediate_directory(self):
         
-        if self.dry_run:
-            print (f"(Dry Run) {self.__intermediate_dir} created")
-        else:
-            if not os.path.exists(f"{self.__intermediate_dir}"):
+        if not os.path.exists(f"{self.__intermediate_dir}"):
+            if self.dry_run:
+                print (f"(Dry Run) {self.__intermediate_dir} created")
+            else:
                 os.mkdir(f"{self.__intermediate_dir}")
 
         return self.__intermediate_dir
@@ -89,6 +89,7 @@ class MutPredpy:
     
 
     def set_faa_output(self):
+
         faa_dir = f"{self.__intermediate_dir}/faa"
         if not os.path.exists(f"{faa_dir}"):
             if self.dry_run:
@@ -259,7 +260,10 @@ class MutPredpy:
         scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
         
         data = data.merge(scores, on="hgvsp", how="left")
+        print (data)
         data = data[data["MutPred2 score"].isna()]
+        print (data)
+        exit()
         data = data.drop("MutPred2 score", axis=1)
         
         return data
