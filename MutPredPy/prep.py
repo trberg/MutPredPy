@@ -291,7 +291,7 @@ class MutPredpy:
     def write_sequence_to_file(self, number, file_number, header, sequence):
 
         output_file = f"{self.__intermediate_dir}/faa/{self.__project}/{self.__base}.missense_{file_number}.faa"
-        print (f"Writing > {output_file}")
+        #print (f"Writing > {output_file}")
         if number == 0:
             #if os.path.exists(output_file):
             output = open(output_file, "w")
