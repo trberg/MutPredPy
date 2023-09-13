@@ -93,11 +93,11 @@ def build_parser():
         )
 
     parser_mutpredStatus.add_argument(
-                '--input', type=str, nargs=1,
+                '--input', type=str, nargs='?',
                 help='The name of the input filename that is located in the data folder'
             )
     parser_mutpredStatus.add_argument(
-                '--project', type=str, nargs=1,
+                '--project', type=str, nargs='?',
                 help='The name of the project for organization purposes'
             )
     parser_mutpredStatus.set_defaults(func=command_status)
