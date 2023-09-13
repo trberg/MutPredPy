@@ -24,8 +24,10 @@ def collect_scores():
     merged_df = pd.DataFrame()
 
     score_dir = os.listdir("intermediates/scores/")
-
+    cur_file_num = 1
     for filename in score_dir:
+
+        print (f"Reading {cur_file_num} of {len(score_dir)} files.", end="\r")
         
         if filename == "scores":
             mutType = 'PASS'
@@ -73,9 +75,11 @@ def collect_scores():
 
         else:
             pass
-    
+        
         merged_df =  pd.concat([data, merged_df])
-
+        cur_file_num += 1
+        
+    print ("")
     key_columns = ["ensembl_protein_id","ensembl_transcript_id","gene_symbol","hgvsp"]
     for col in key_columns:
         if col not in merged_df.columns:
