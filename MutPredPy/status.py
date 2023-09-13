@@ -62,7 +62,6 @@ class Status:
     def mutpred_status(self):
 
         base = self.get_base()
-        print (base)
         project = self.get_project()
         intermediate = self.get_intermediate_dir()
 
@@ -71,17 +70,8 @@ class Status:
         print (os.path.abspath(faa_dir))
         f_reg = re.compile(f"{base}.missense_\d+.faa")
 
-        test = ['clinvar_genes.missense_744.faa', 'clinvar_genes.missense_195.faa', 'clinvar_genes.missense_661.faa', 'clinvar_genes.missense_762.faa']
-
-        #faa_files = [f for f in os.listdir(faa_dir)]
-        #print (faa_files)
-        
-        #faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
-        #print (faa_files)
-
-        faa_files = [f for f in test if f_reg.match(f)]
+        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
         print (faa_files)
-        exit()
 
         faa = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
         
