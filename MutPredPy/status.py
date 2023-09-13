@@ -5,7 +5,7 @@ import argparse
 import re
 import os
 
-import fasta
+from . import fasta
 
 
 class Status:
@@ -72,7 +72,7 @@ class Status:
         
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
 
-        fasta = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
+        faa = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
 
         #print (fasta)
         
@@ -87,7 +87,7 @@ class Status:
 
         #print (scores)
 
-        status = fasta.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
+        status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
         status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
 
         summary = pd.DataFrame(status.groupby("index")["num_mutations_faa","num_mutations_scored"].agg(sum)).reset_index()
