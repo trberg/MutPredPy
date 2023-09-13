@@ -6,7 +6,7 @@ from . import fasta
 
 
 def write_output(data):
-    print (f"{os.getcwd()}/scores/MutPred2.tsv")
+    print (f"Writing scores to > {os.getcwd()}/scores/MutPred2.tsv")
     #data.to_csv("scores/MutPred2.tsv", sep="\t", index=False)
 
 
@@ -21,10 +21,10 @@ def existing_scores():
 
 def collect_scores():
 
-    merged_df = pd.DataFrame()
-
     score_dir = os.listdir("intermediates/scores/")
     cur_file_num = 1
+    score_df = []
+
     for filename in score_dir:
 
         print (f"Reading {cur_file_num} of {len(score_dir)} files.", end="\r")
@@ -76,9 +76,10 @@ def collect_scores():
         else:
             pass
         
-        merged_df =  pd.concat([data, merged_df])
+        score_df.append(data)
         cur_file_num += 1
-        
+
+    merged_df =  pd.concat(score_df)
     print ("")
     key_columns = ["ensembl_protein_id","ensembl_transcript_id","gene_symbol","hgvsp"]
     for col in key_columns:
