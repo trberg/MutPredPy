@@ -343,9 +343,11 @@ class MutPredpy:
         threshold = self.get_time()
         variable  = "Time Estimate (hrs)"
         
-
-        self.set_intermediate_directory()
-        self.set_faa_output()
+        if self.dry_run:
+            pass
+        else:
+            self.set_intermediate_directory()
+            self.set_faa_output()
 
         for index,row in data.iterrows():
 
