@@ -100,5 +100,3 @@ def merge():
 
     write_output(merged_df)
     print (f"{added_scores} scored mutations added.")
-
-merge()
