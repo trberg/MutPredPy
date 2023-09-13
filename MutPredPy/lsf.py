@@ -105,7 +105,7 @@ def config_template():
 #BSUB -oo /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/logs/$project/out_$base.%J.faa_file_%I
 #BSUB -e /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/logs/$project/err_$base.%J.faa_file_%I
 
-./run_mutpred2.sh -i $intermediate_dir/faa/$project/$base.missense_$index.faa -p 1 -c 1 -b 0 -t 0.05 -f 4 -o $intermediate_dir/scores/$base.missense_output_$index.txt
+./run_mutpred2.sh -i $intermediate_dir/faa/$project/$base.missense_$index.faa -p 1 -c 1 -b 0 -t 0.05 -f 2 -o $intermediate_dir/scores/$base.missense_output_$index.txt
 """)
 
 
