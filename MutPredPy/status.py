@@ -1,4 +1,3 @@
-#from . import mutpred2_prep
 import pandas as pd
 import argparse
 
@@ -105,7 +104,7 @@ class Status:
 
 
 
-
+'''
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Check the status of a currently running or a previously ran MutPred2 job.')
@@ -127,4 +126,4 @@ if __name__ == "__main__":
         project=project
     )
     
-    status.mutpred_status()
+    status.mutpred_status()'''
