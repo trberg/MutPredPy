@@ -41,7 +41,7 @@ def command_status(args):
 
 def command_merge(args):
 
-    merge.merge()
+    merge.merge(dry_run=args.dry_run)
 
 
 
@@ -110,6 +110,10 @@ def build_parser():
             help="Combine the output scored mutations from MutPred into a single file."
         )
     
+    parser_mutpredMerge.add_argument(
+                "--dry_run", action="store_true", 
+                help='Run through the merging process without saving the output'
+            )
     parser_mutpredMerge.set_defaults(func=command_merge)
 
     return parser
