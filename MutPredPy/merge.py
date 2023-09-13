@@ -1,8 +1,7 @@
 import pandas as pd
 import os
 
-from . import fasta
-#import fasta
+import fasta
 
 
 
