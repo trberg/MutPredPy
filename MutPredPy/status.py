@@ -13,7 +13,7 @@ class Status:
         self.__intermediate_dir = "intermediates"
         self.__project = project
         self.__input = self.input_path(input)
-        self.__base = input.split(".")[0].split("/")[-1]
+        self.__base = input.split("/")[-1].split(".")[0]
 
     
     def get_intermediate_dir(self):
@@ -62,6 +62,7 @@ class Status:
     def mutpred_status(self):
 
         base = self.get_base()
+        print (base)
         project = self.get_project()
         intermediate = self.get_intermediate_dir()
 
@@ -70,11 +71,17 @@ class Status:
         print (os.path.abspath(faa_dir))
         f_reg = re.compile(f"{base}.missense_\d+.faa")
 
-        faa_files = [f for f in os.listdir(faa_dir)]
-        print (faa_files)
+        test = ['clinvar_genes.missense_744.faa', 'clinvar_genes.missense_195.faa', 'clinvar_genes.missense_661.faa', 'clinvar_genes.missense_762.faa']
+
+        #faa_files = [f for f in os.listdir(faa_dir)]
+        #print (faa_files)
         
-        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+        #faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+        #print (faa_files)
+
+        faa_files = [f for f in test if f_reg.match(f)]
         print (faa_files)
+        exit()
 
         faa = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
         
@@ -113,16 +120,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Check the status of a currently running or a previously ran MutPred2 job.')
     
 
-    parser.add_argument('--input', type=str, nargs=1,
+    parser.add_argument('--input', type=str, nargs='?',
                         help='The name of the input filename that is located in the data folder.')
-    parser.add_argument('--project', type=str, nargs=1,
+    parser.add_argument('--project', type=str, nargs='?',
                         help='The name of the project for organization purposes')
 
     
     args = parser.parse_args()
 
-    input   = args.input[0]
-    project = args.project[0]
+    input   = args.input
+    project = args.project
     
     status = Status(
         input=input,
