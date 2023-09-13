@@ -67,11 +67,15 @@ class Status:
 
         
         faa_dir = f"{intermediate}/faa/{project}"
+        print (os.path.abspath(faa_dir))
         f_reg = re.compile(f"{base}.missense_\d+.faa")
+
+        faa_files = [f for f in os.listdir(faa_dir)]
+        print (faa_files)
         
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
         print (faa_files)
-        
+
         faa = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
         
 
