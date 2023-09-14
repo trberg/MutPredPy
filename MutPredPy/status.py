@@ -50,11 +50,13 @@ class Status:
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
 
         scores = pd.read_csv(file)
-        
+
         if len(scores) > 0:
             scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(list)).reset_index()
             scores["num_mutations"] = scores["Substitution"].apply(len).astype(int)
             scores["index"] = index
+        else:
+            scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
 
         return scores
 
