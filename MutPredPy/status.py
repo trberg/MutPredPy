@@ -48,7 +48,8 @@ class Status:
     def read_mutpred_output(self, file):
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
-
+        print (file)
+        
         scores = pd.read_csv(file)
 
         if len(scores) > 0:
