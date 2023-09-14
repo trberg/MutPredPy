@@ -4,7 +4,7 @@ import argparse
 import re
 import os
 
-from . import fasta
+import fasta
 
 
 class Status:
@@ -59,33 +59,79 @@ class Status:
             scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
 
         return scores
+    
 
+    
+    def read_err_log(self, log):
+        
+        error = ""
+        
+        with open(f"logs/{self.get_project()}/{log}") as l:
+            for line in l:
+                if len(line) > 1:
+                    error += line
+        
+        return error
+
+    
+    
+    
+    def has_err_log(self, log, index, job):
+        cur_log = f"logs/{self.get_project()}/{log}"
+        #print (cur_log, os.path.exists(cur_log), os.path.getsize(cur_log))
+        
+        if os.path.exists(cur_log) and os.path.getsize(cur_log) > 0:
+            error = self.read_err_log(log).replace("\n",", ")
+            return pd.Series([True, error])
+        
+        else:
+            error = ""
+            return pd.Series([False, error])
+
+
+
+    def retrieve_logs(self):
+        l_reg = re.compile(f"err_{self.get_base()}.\d+.faa_file_\d+$")
+
+        log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"logs/{self.get_project()}/") if l_reg.match(l)]})
+        log_files["type"] = log_files["logs"].str.split("_").str[0]
+        log_files["job"] = log_files["logs"].str.split(".").str[1]
+        log_files["index"] = log_files["logs"].str.split("_").str[-1].astype(int)
+
+        latest_job = max(log_files["job"])
+
+        log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], latest_job), axis=1)
+        log_files = log_files[["index", "hasError", "Error"]]
+        return log_files
+    
+
+    def retrieve_faas(self):
+        faa_dir = f"{self.get_intermediate_dir()}/faa/{self.get_project()}"
+        f_reg = re.compile(f"{self.get_base()}.missense_\d+.faa")
+
+        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+
+        return pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files])
+    
+
+    def retrieve_outputs(self):
+        o_reg = re.compile(f"{self.get_base()}.missense_output_\d+.txt$")
+        out_dir = f"{self.get_intermediate_dir()}/scores"
+        
+        out_files = [o for o in os.listdir(out_dir) if o_reg.match(o)]
+
+        return pd.concat([self.read_mutpred_output(f"{out_dir}/{s}") for s in out_files])
 
     
     def mutpred_status(self):
 
         base = self.get_base()
-        project = self.get_project()
-        intermediate = self.get_intermediate_dir()
 
+        faa = self.retrieve_faas()
         
-        faa_dir = f"{intermediate}/faa/{project}"
-        f_reg = re.compile(f"{base}.missense_\d+.faa")
+        scores = self.retrieve_outputs()
 
-        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
-
-        faa = pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files]) 
-        
-
-
-        o_reg = re.compile(f"{base}.missense_output_\d+.txt$")
-        out_dir = f"{intermediate}/scores"
-        
-        out_files = [o for o in os.listdir(out_dir) if o_reg.match(o)]
-
-        scores = pd.concat([self.read_mutpred_output(f"{out_dir}/{s}") for s in out_files])
-
-        #print (scores)
+        logs = self.retrieve_logs()
 
         status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
         status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
@@ -96,11 +142,17 @@ class Status:
         summary["percent"] = round((summary["num_mutations_scored"]/summary["num_mutations_faa"])*100, 2)
         summary["remaining_mutations"] = summary["num_mutations_faa"] - summary["num_mutations_scored"]
 
+        summary = summary.merge(logs, on="index", how="left")
+        summary["hasError"].fillna(False, inplace=True)
+        summary["Error"].fillna("", inplace=True)
+
         summary = summary.sort_values("index")
 
         for index, row in summary.iterrows():
-            if row['percent'] < 100:
+            if row['percent'] < 100 and not row['hasError']:
                 print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
+            elif row['percent'] < 100 and row['hasError']:
+                print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\t{row['Error']}")
             else:
                 print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\tComplete!")
 
