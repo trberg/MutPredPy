@@ -51,7 +51,7 @@ class Status:
         print (file)
 
 
-        if os.path.isfile(file) and os.path.getsize(file):
+        if os.path.isfile(file) and os.path.getsize(file) > 0:
             scores = pd.read_csv(file)
 
             scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(list)).reset_index()
