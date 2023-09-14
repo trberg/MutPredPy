@@ -4,7 +4,7 @@ import argparse
 import re
 import os
 
-import fasta
+from . import fasta
 
 
 class Status:
