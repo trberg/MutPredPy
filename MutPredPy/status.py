@@ -49,7 +49,7 @@ class Status:
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
         print (file)
-        
+
         scores = pd.read_csv(file)
 
         if len(scores) > 0:
@@ -79,7 +79,7 @@ class Status:
         
 
 
-        o_reg = re.compile(f"{base}.missense_output_\d+.txt")
+        o_reg = re.compile(f"{base}.missense_output_\d+.txt$")
         out_dir = f"{intermediate}/scores"
         
         out_files = [o for o in os.listdir(out_dir) if o_reg.match(o)]
