@@ -48,8 +48,6 @@ class Status:
     def read_mutpred_output(self, file):
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
-        print (file)
-
 
         if os.path.isfile(file) and os.path.getsize(file) > 0:
             scores = pd.read_csv(file)
@@ -102,7 +100,7 @@ class Status:
 
         for index, row in summary.iterrows():
             if row['percent'] < 100:
-                print (f"{base}.missense_{row['index']}\t{row['percent']}%")
+                print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
 
         print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
