@@ -101,6 +101,8 @@ class Status:
         for index, row in summary.iterrows():
             if row['percent'] < 100:
                 print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
+            else:
+                print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\tComplete!")
 
         print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
