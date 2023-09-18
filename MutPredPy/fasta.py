@@ -89,10 +89,6 @@ def clean_FASTA_sequence(sequence):
 
 
 def mutation_mapping(x):
-    
-    ref = x[:3]
-    loc = x[3:-3]
-    alt = x[-3:]
 
     loc = re.findall(r'\d+', x)[0]
 
