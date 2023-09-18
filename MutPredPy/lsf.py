@@ -121,7 +121,7 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base):
     
 
     high_memory = tech_requirements[tech_requirements['High Memory']]
-    normal_job     = tech_requirements[tech_requirements['Normal Memory']]
+    normal_job  = tech_requirements[tech_requirements['Normal Memory']]
 
     jobs = [normal_job, high_memory]
 
@@ -138,3 +138,5 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base):
                 'index': "$LSB_JOBINDEX"
             })
             print (template)
+    
+

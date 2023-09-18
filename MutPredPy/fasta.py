@@ -52,24 +52,26 @@ def check_sequences(row):
         reasons["Sequence Errors"].append(f"Sequence {sequence_length} shorter than max position {max_position}")
 
     if len(sequence) < 30:
-            PASS = False
-            reasons["Sequence Errors"].append("Sequence < 30")
+        PASS = False
+        reasons["Sequence Errors"].append("Sequence < 30")
+    
+    if "*" in sequence:
+        PASS = False
+        reasons["Sequence Errors"].append("* in Sequence")
+
+    if "U" in sequence:    
+        PASS = False
+        reasons["Sequence Errors"].append("U in Sequence")
 
     for i in range(len(mutation_positions)):
         
-        if not PASS or ref_AA[i] != sequence[mutation_positions[i]-1]:    
-            PASS = False
-            reasons["Mutation Errors"].append(f"{mutations[i]}")
-            
-        if "*" in sequence:
-            PASS = False
-            reasons["Mutation Errors"].append(f"{mutations[i]}")
+        if not PASS:
+            pass
+        elif ref_AA[i] != sequence[mutation_positions[i]-1]:    
+            reasons["Mutation Errors"].append(f"{mutations[i]}: {ref_AA[i]} != {sequence[mutation_positions[i]-1]}")
 
-        if "U" in sequence:    
-            PASS = False
-            reasons["Mutation Errors"].append(f"{mutations[i]}")
-
-        
+    if len(reasons["Mutation Errors"]) > 0:
+        PASS = False
 
     return PASS, reasons["Sequence Errors"], reasons["Mutation Errors"]
 
@@ -77,7 +79,13 @@ def check_sequences(row):
 
 def clean_FASTA_sequence(sequence):
 
-    return sequence.replace("*","A")
+    sequence = sequence.replace("*","A")
+    sequence = sequence.replace("U","A")
+
+    if sequence.startswith("X"):
+        sequence = sequence.replace("X", "", 1)
+
+    return sequence
 
 
 def mutation_mapping(x):
@@ -137,7 +145,7 @@ def collect_dbNSFP_mutations(x):
 
 
 
-def filter_non_missense(data, file_format):
+def filter_non_missense(data, file_format, annotation):
     if file_format == "dbNSFP":
         
         print (f"Pre-filtered count: {len(data)}")
@@ -149,6 +157,14 @@ def filter_non_missense(data, file_format):
     elif file_format == "VEP":
 
         data = data[data["Consequence"].str.contains("missense_variant")]
+
+        return data
+    
+    elif file_format=="VCF-info" and annotation=="SnpEff":
+
+        print (f"Pre-filtered count: {len(data)}")
+        data = data[data["Annotation"]=="missense_variant"]
+        print (f"Post-filtered count: {len(data)}")
 
         return data
     
@@ -216,7 +232,7 @@ def read_mutpred_input_fasta(faa_file):
     return output
 
 
-def collect_fasta(pep_file):
+def collect_fasta(pep_file, primary="Ensembl_proteinid_v"):
 
     output = []
 
@@ -236,11 +252,21 @@ def collect_fasta(pep_file):
                     output.append(temp.copy())
                     
                 header_info = line.replace(">","").split(" ")
+                keys = {k.split(":")[0]:k.split(":")[1] for k in header_info if ":" in k}
+                
 
                 protein = header_info[0]
-                gene_symbol = header_info[7].split(":")[1]
+                try:
+                    gene_symbol = keys["gene_symbol"]
+                except KeyError:
+                    gene_symbol = ""
+                    
+                gene = keys["gene"]
+                transcript = keys["transcript"]
 
                 temp["Ensembl_proteinid_v"] = protein
+                temp["Ensembl_geneid"] = gene
+                temp["Ensembl_transcriptid"] = transcript
                 temp["gene_symbol"] = gene_symbol
                 temp["sequence"] = ""
                 
@@ -253,7 +279,12 @@ def collect_fasta(pep_file):
 
     output = pd.DataFrame(output)
 
-    
+    #print (output[output["Ensembl_proteinid_v"]=="ENSP00000011700.6"]) ENSP00000343837.5
+    #print (output[output["Ensembl_proteinid_v"].isin(["ENSP00000011700.6","ENSP00000243562.10","ENSP00000252444.5"])])
+    #print (output[output["Ensembl_proteinid_v"].isin(["ENSP00000350349.3"])])
+    #exit()
+    output = output.drop_duplicates(subset=[primary, "sequence"], keep="first")
+
     output["version"] = output["Ensembl_proteinid_v"].str.split(".").str[1]
     output["Ensembl_proteinid"] = output["Ensembl_proteinid_v"].str.split(".").str[0]
     output = output.sort_values("Ensembl_proteinid")
