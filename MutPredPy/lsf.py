@@ -216,5 +216,5 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
             if dry_run:
                 pass
             else:
-                with open(f"scripts/{output_config_file_name}") as s:
+                with open(f"scripts/{output_config_file_name}","w") as s:
                     s.write(template)
