@@ -284,6 +284,7 @@ class MutPredpy:
             data["mutation"] = data.apply(lambda x: fasta.collect_dbNSFP_mutations(x), axis=1)
 
         else:
+            print (data)
             data[["Ensembl_proteinid","mutation"]] = data["hgvsp"].str.split(":",expand=True)
             data["mutation"] = data["mutation"].str.split(".").str[1].apply(lambda x: fasta.mutation_mapping(x))
         
