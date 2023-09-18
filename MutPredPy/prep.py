@@ -468,8 +468,9 @@ class MutPredpy:
 
         job_information = pd.DataFrame(job_information)
 
-        job_information["Normal Memory"] = job_information["Memory Minimum"].apply(lambda x: x <= 10000)
-        job_information["High Memory"] = job_information["Memory Minimum"].apply(lambda x: x > 10000)
+        job_information["Normal Memory"]    = job_information["Memory Minimum"].apply(lambda x: x <= 5000)
+        job_information["Middle Memory"] = job_information["Memory Minimum"].apply(lambda x: x > 5000 and x <= 10000)
+        job_information["High Memory"]   = job_information["Memory Minimum"].apply(lambda x: x > 10000)
 
         return job_information
 
@@ -521,10 +522,13 @@ class MutPredpy:
             #self.summary(self.variant_data)
 
             tech_requirements = self.split_data(self.variant_data)
-            
-            lsf.usage_report(tech_requirements)
 
-            lsf.build_lsf_config_file(tech_requirements, self.get_intermediate_dir(), self.get_project(), self.get_base())
+            per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=2)
+
+            for user in range(len(per_user_tech_requirements)):
+                lsf.usage_report(per_user_tech_requirements[user])
+
+                lsf.build_lsf_config_file(per_user_tech_requirements[user], self.get_intermediate_dir(), self.get_project(), self.get_base(), user, self.dry_run)
 
         else:
             print (f"HGVSp key not found in input columns -> [{','.join(self.variant_data.columns)}]")

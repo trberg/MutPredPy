@@ -1,9 +1,11 @@
 
 from string import Template
+import os
+import pandas as pd
 
 
 ## GLOBAL VARIABLES
-memory_cushion = 2000
+memory_cushion = 1000
 time_cushion = 6
 cores = 4
 
@@ -39,6 +41,11 @@ def report_template():
     Jobs            $nj
     Memory Usage    $nmu Gb
     Time            $nt Hrs
+
+========== Middle Jobs ==========
+    Jobs            $mj
+    Memory Usage    $mmu Gb
+    Time            $mt Hrs
                     
 ========== High Memory Jobs ==========
     Jobs            $hj
@@ -57,10 +64,9 @@ def usage_report(tech_requirements):
     #print (tech_requirements)
 
     high_memory = tech_requirements[tech_requirements['High Memory']]
-    normal_job     = tech_requirements[tech_requirements['Normal Memory']]
+    mid_memory  = tech_requirements[tech_requirements['Middle Memory']]
+    normal_job  = tech_requirements[tech_requirements['Normal Memory']]
 
-    #print (high_memory)
-    #print (normal_job)
 
     if len(high_memory) > 0:
         high_mem_usage = int((max(high_memory["Memory Minimum"]) + memory_cushion)) * len(high_memory)
@@ -68,6 +74,14 @@ def usage_report(tech_requirements):
     else:
         high_mem_usage = 0
         high_time_usage = 0
+
+    
+    if len(mid_memory) > 0:
+        mid_mem_usage = int((max(mid_memory["Memory Minimum"]) + memory_cushion)) * len(mid_memory)
+        mid_time_usage = int(max(mid_memory["Time Estimate"])) + time_cushion
+    else:
+        mid_mem_usage = 0
+        mid_time_usage = 0
 
     
     if len(normal_job) > 0:
@@ -82,6 +96,11 @@ def usage_report(tech_requirements):
         "nmu":int(norm_mem_usage/1000),
         "nt":norm_time_usage,
         "nj":len(normal_job),
+
+        "mmu":int(mid_mem_usage/1000),
+        "mt":mid_time_usage,
+        "mj":len(mid_memory),
+
         "hmu":int(high_mem_usage/1000),
         "ht":high_time_usage,
         "hj":len(high_memory),
@@ -93,6 +112,40 @@ def usage_report(tech_requirements):
     print (report)
 
 
+def split_for_multiple_users(tech_requirements, users):
+    splits = users
+    
+    high_memory = tech_requirements[tech_requirements['High Memory']]
+    mid_memory  = tech_requirements[tech_requirements['Middle Memory']]
+    normal_job  = tech_requirements[tech_requirements['Normal Memory']]
+
+    high_mem_splits = int(len(high_memory)/splits)
+    mid_mem_splits  = int(len(mid_memory)/splits)
+    norm_mem_splits = int(len(normal_job)/splits)
+
+    user_outputs = []
+    for user in range(users):
+        
+        high_mem_cur_start = user*high_mem_splits
+        mid_mem_cur_start  = user*mid_mem_splits
+        norm_mem_cur_start = user*norm_mem_splits
+
+        high_mem_cur_end = (user+1)*high_mem_splits
+        mid_mem_cur_end  = (user+1)*mid_mem_splits
+        norm_mem_cur_end = (user+1)*norm_mem_splits
+
+        user_high_memory = high_memory.iloc[high_mem_cur_start:high_mem_cur_end]
+        user_mid_memory = mid_memory.iloc[mid_mem_cur_start:mid_mem_cur_end]
+        user_normal_memory = normal_job.iloc[norm_mem_cur_start:norm_mem_cur_end]
+
+        user = pd.concat([user_normal_memory, user_high_memory, user_mid_memory])
+
+        user_outputs.append(user)
+
+    return user_outputs
+
+
+
 def config_template():
     return Template("""
 #BSUB -P acc_pejaverlab
@@ -102,41 +155,66 @@ def config_template():
 #BSUB -W $time
 #BSUB -q premium
 #BSUB -J $job$job_array
+#BSUB -cwd /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/tools/mutpred2.0
 #BSUB -oo /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/logs/$project/out_$base.%J.faa_file_%I
 #BSUB -e /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/logs/$project/err_$base.%J.faa_file_%I
 
-/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev \
+./run_mutpred2.sh
 -i /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$base.missense_$index.faa \
 -o /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$base.missense_output_$index.txt \
 -p 1 -c 1 -b 0 -t 1 -f 2 \
--d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/
+
 """)
 
 """
-./run_mutpred2.sh -i $intermediate_dir/faa/$project/$base.missense_$index.faa -p 1 -c 1 -b 0 -t 0.05 -f 2 -o $intermediate_dir/scores/$base.missense_output_$index.txt
+/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev \
+ -i $intermediate_dir/faa/$project/$base.missense_$index.faa -p 1 -c 1 -b 0 -t 0.05 -f 2 -o $intermediate_dir/scores/$base.missense_output_$index.txt
+-d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/
 """
 
-def build_lsf_config_file(tech_requirements, intermediate_dir, project, base):
+def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, user, dry_run):
 
-    
+    user += 1
 
     high_memory = tech_requirements[tech_requirements['High Memory']]
+    mid_memory  = tech_requirements[tech_requirements['Middle Memory']]
     normal_job  = tech_requirements[tech_requirements['Normal Memory']]
 
-    jobs = [normal_job, high_memory]
+    jobs = [normal_job, mid_memory, high_memory]
+    job_type = ["normal", "middle", "high"]
 
-    for job in jobs:
-        if len(job) > 0:
+    for i in range(len(jobs)):
+    #for job in jobs:
+        if len(jobs[i]) > 0:
             template = config_template().substitute({
-                'mem': int((max(job["Memory Minimum"]) + memory_cushion)/cores),
-                'time': f'{int(max(job["Time Estimate"])) + time_cushion}:00',
+                'mem': int((max(jobs[i]["Memory Minimum"]) + memory_cushion)/cores),
+                'time': "90:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
                 'job': f"{project}_variants",
-                'job_array': build_job_array(job['File']),
+                'job_array': build_job_array(jobs[i]['File']),
                 'project': project,
                 'intermediate_dir': intermediate_dir,
                 'base': base,
                 'index': "$LSB_JOBINDEX"
             })
-            print (template)
-    
+            #print (template)
 
+            if not os.path.exists("scripts"):
+                if dry_run:
+                    print ("No 'scripts' folder.")
+                else:
+                    os.mkdir("scripts")
+            if job_type[i] == "normal":
+                output_config_file_name = f"{project}_{user}.lsf"
+            elif job_type[i] == "middle":
+                output_config_file_name = f"{project}_{user}_mid_mem.lsf"
+            elif job_type[i] == "high":
+                output_config_file_name = f"{project}_{user}_high_mem.lsf"
+
+            print (template)
+            print (f"Written to scripts/{output_config_file_name}")
+            
+            if dry_run:
+                pass
+            else:
+                with open(f"scripts/{output_config_file_name}") as s:
+                    s.write(template)
