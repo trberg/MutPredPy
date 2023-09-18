@@ -21,10 +21,12 @@ class MutPredpy:
         self.dry_run = dry_run
         self.canonical = canonical
 
-        self.fasta = fasta.collect_fasta("resources/Homo_sapiens.GRCh38.combined.pep.all.fa")
+        self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
+        self.fasta = fasta.collect_fasta(self.__fasta_location)
 
-        self.original_data = self.read_input_data()
-    
+        self.header_data, self.original_data = self.read_input_data()
+        self.file_format = self.input_format()
+        self.annotation = self.get_annotation()
 
 
     def input_path(self, input):
@@ -58,6 +60,24 @@ class MutPredpy:
     
     def get_time(self):
         return self.__time
+    
+    def get_annotation(self):
+        if self.file_format == "VCF-info":
+            if "SnpEff" in self.header_data:
+                self.__annotation = "SnpEff"
+            elif "ENSEMBL VARIANT EFFECT PREDICTOR" in self.header_data:
+                self.__annotation = "VEP"
+            else:
+                self.__annotation = False
+
+        elif self.file_format == "dbNSFP":
+            self.__annotation = "dbNSFP"
+
+        else:
+            self.__annotation == False
+        
+        return self.__annotation
+    
 
 
     def input_format(self):
@@ -66,6 +86,8 @@ class MutPredpy:
             file_format = "dbNSFP"
         elif len(set(["Location","Allele","Consequence","Protein_position","Amino_acids","Extra"]).intersection(cols)) == 6:
             file_format = "VEP"
+        elif len(set(["#CHROM","POS","REF","ALT","INFO"]).intersection(cols)) == 5:
+            file_format = "VCF-info"
         elif len(set(["#CHROM","POS","REF","ALT"]).intersection(cols)) == 4:
             file_format = "VCF"
         else:
@@ -118,7 +140,17 @@ class MutPredpy:
 
 
     def read_input_data(self):
-        return pd.read_csv(self.__input, sep="\t", skiprows = [i for i, line in enumerate(open(self.__input)) if line.startswith('##')])
+        
+        header_rows = []
+        header_info = ""
+        for i, line in enumerate(open(self.__input)):
+            if line.startswith('##'):
+                header_rows.append(i)
+                header_info += line
+
+        input_data = pd.read_csv(self.__input, sep="\t", skiprows = header_rows)
+
+        return header_info, input_data
 
 
 
@@ -134,8 +166,6 @@ class MutPredpy:
 
 
     def hgvsp(self, data):
-
-        self.file_format = self.input_format()
 
         input_cols = set(data.columns)
         possibilites = set(["hgvsp", "HGVSp", "HGVSP"])
@@ -189,7 +219,27 @@ class MutPredpy:
             data = data.explode(["aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"])
             
             return data, True
+        elif self.file_format == "VCF-info" and self.annotation == "SnpEff":
+            
+            columns = []
+            for line in self.header_data.split("\n"):
+                if "ID=ANN" in line:
+                    columns = line.split("'")[1].split(" | ")
 
+            if len(columns) > 0:
+                data["INFO"] = data["INFO"].apply(lambda x: self.collect_value(x, val="ANN")).str.split(",")
+                data = data.explode("INFO")
+                data[columns] = data["INFO"].str.split("|", expand=True)
+                data = data[["#CHROM","POS","ID","REF","ALT","Annotation","Gene_Name","Gene_ID","Feature_Type","Feature_ID",'Transcript_BioType','HGVS.p']]
+                
+                transcript_to_protein_map = fasta.collect_fasta(self.__fasta_location, primary="Ensembl_transcriptid")[["Ensembl_transcriptid", "Ensembl_proteinid_v"]]
+                
+                data = data.merge(transcript_to_protein_map, left_on="Feature_ID", right_on="Ensembl_transcriptid", how="left")
+
+                data["hgvsp"] = data["Ensembl_proteinid_v"] + ":" + data["HGVS.p"]
+                
+                return data, True
+            
         else:
             return data, False
         
@@ -430,14 +480,14 @@ class MutPredpy:
         input_data = self.get_input_data()
         
         self.variant_data, hgvsp_status = self.hgvsp(input_data)
-
+        
         if hgvsp_status:
 
             self.variant_data = self.filter_canonical(self.variant_data)
 
-            self.variant_data = self.filtered_scored(self.variant_data)
+            self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
 
-            self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format)
+            self.variant_data = self.filtered_scored(self.variant_data)
             
             self.variant_data = self.collect_mutations(self.variant_data)
             
@@ -449,13 +499,13 @@ class MutPredpy:
 
             self.variant_data = self.sequence_quality_check(self.variant_data)
 
-            #print (self.variant_data)
-            #exit()
 
             ## Check if any sequences are invalid
             not_passed = self.variant_data[self.variant_data["status"]==False]
             if len(not_passed) > 0:
                 print (f"{len(not_passed)} proteins failed quality check")
+                #print (not_passed)
+                #exit()
                 self.variant_data = self.variant_data[self.variant_data["status"]]
 
             ## Check if any of the proteins are unmapped
@@ -468,7 +518,7 @@ class MutPredpy:
             #print (self.variant_data.sort_values("Time Estimate (hrs)"))
             #print (self.variant_data)
 
-            self.summary(self.variant_data)
+            #self.summary(self.variant_data)
 
             tech_requirements = self.split_data(self.variant_data)
             
