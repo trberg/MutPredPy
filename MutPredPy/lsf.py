@@ -139,9 +139,9 @@ def split_for_multiple_users(tech_requirements, users):
         user_mid_memory = mid_memory.iloc[mid_mem_cur_start:mid_mem_cur_end]
         user_normal_memory = normal_job.iloc[norm_mem_cur_start:norm_mem_cur_end]
 
-        user = pd.concat([user_normal_memory, user_high_memory, user_mid_memory])
+        user_jobs = pd.concat([user_normal_memory, user_high_memory, user_mid_memory])
 
-        user_outputs.append(user)
+        user_outputs.append(user_jobs)
 
     return user_outputs
 
