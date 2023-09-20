@@ -104,9 +104,10 @@ def usage_report(tech_requirements):
         "hmu":int(high_mem_usage/1000),
         "ht":high_time_usage,
         "hj":len(high_memory),
-        "tmu":int((high_mem_usage+norm_mem_usage)/1000),
-        "tt":max([norm_time_usage,high_time_usage]),
-        "tj":len(normal_job)+len(high_memory)
+
+        "tmu":int((high_mem_usage+norm_mem_usage+mid_mem_usage)/1000),
+        "tt":max([norm_time_usage,high_time_usage,mid_mem_usage]),
+        "tj":len(normal_job)+len(high_memory) + len(mid_memory)
     })
 
     print (report)
@@ -155,13 +156,13 @@ def config_template():
 #BSUB -W $time
 #BSUB -q premium
 #BSUB -J $job$job_array
-#BSUB -cwd /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/tools/mutpred2.0
-#BSUB -oo /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/logs/$project/out_$base.%J.faa_file_%I
-#BSUB -e /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/logs/$project/err_$base.%J.faa_file_%I
+#BSUB -cwd /sc/arion/projects/pejaverlab/lab_software/MutPredPy/tools/mutpred2.0
+#BSUB -oo /sc/arion/projects/pejaverlab/lab_software/MutPredPy/logs/$project/out_$base.%J.faa_file_%I
+#BSUB -e /sc/arion/projects/pejaverlab/lab_software/MutPredPy/logs/$project/err_$base.%J.faa_file_%I
 
 ./run_mutpred2.sh \
--i /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$base.missense_$index.faa \
--o /hpc/users/bergqt01/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$base.missense_output_$index.txt \
+-i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$base.missense_$index.faa \
+-o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$base.missense_output_$index.txt \
 -p 1 -c 1 -b 0 -t 1 -f 2 \
 
 """)
