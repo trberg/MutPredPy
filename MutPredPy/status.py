@@ -98,6 +98,14 @@ class Status:
         log_files["type"] = log_files["logs"].str.split("_").str[0]
         log_files["job"] = log_files["logs"].str.split(".").str[1]
         log_files["index"] = log_files["logs"].str.split("_").str[-1].astype(int)
+        
+        latest_err_logs = pd.DataFrame(log_files.groupby(["index","type"])["job"].max()).reset_index()
+        
+        log_files = log_files.merge(latest_err_logs, on=["index","type","job"], how="inner")
+
+        print (log_files)
+        print (latest_err_logs)
+        exit()
 
         latest_job = max(log_files["job"])
 
