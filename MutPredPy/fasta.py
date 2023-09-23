@@ -220,9 +220,12 @@ def read_mutpred_input_fasta(faa_file):
                 
 
     output = pd.DataFrame(output)
-    output = output.drop_duplicates()
 
     output["num_mutations"] = output["mutations"].apply(len)
+
+    output["mutations"] = output["mutations"].apply(lambda x: ",".join(x))
+    #print (output)
+    output = output.drop_duplicates()
 
     output["index"] = index
 
