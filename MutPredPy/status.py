@@ -103,9 +103,9 @@ class Status:
         
         log_files = log_files.merge(latest_err_logs, on=["index","type","job"], how="inner")
 
-        print (log_files)
-        print (latest_err_logs)
-        exit()
+        #print (log_files)
+        #print (latest_err_logs)
+        #exit()
 
         latest_job = max(log_files["job"])
 
