@@ -40,6 +40,8 @@ class Remaining:
         for e in exclude:
             if '-' in e:
                 indices += list(range(int(e.split('-')[0]),int(e.split('-')[1])+1))
+            elif e == '':
+                pass
             else:
                 indices.append(int(e))
         indices = [str(i) for i in indices]
@@ -112,8 +114,6 @@ class Remaining:
     def remainder(self):
 
         inputs  = self.retrieve_faas()
-        print (inputs)
-        exit()
         inputs["mutations"] = inputs["mutations"].str.split(",").apply(set)
 
         outputs = self.retrieve_outputs()
