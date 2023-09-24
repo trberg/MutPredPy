@@ -107,11 +107,11 @@ class Status:
         #print (latest_err_logs)
         #exit()
 
-        latest_job = max(log_files["job"])
+        #latest_job = max(log_files["job"])
 
-        log_files = log_files[log_files["job"]==latest_job]
+        #log_files = log_files[log_files["job"]==latest_job]
 
-        log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], latest_job), axis=1)
+        log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], row["job"]), axis=1)
         log_files = log_files[["index", "hasError", "Error"]]
         return log_files
     
