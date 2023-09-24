@@ -8,12 +8,13 @@ import fasta
 
 
 class Remaining:
-    def __init__(self, input, project):
+    def __init__(self, input, project, exclude):
         
         self.__intermediate_dir = "intermediates"
         self.__project = project
         self.__input = self.input_path(input)
         self.__base = input.split("/")[-1].split(".")[0]
+        self.__exclude_indices = self.generate_exclude_indices(exclude)
 
         self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
 
@@ -26,6 +27,24 @@ class Remaining:
     
     def get_base(self):
         return self.__base
+    
+    def get_exclude_indices(self):
+        return self.__exclude_indices
+    
+    def generate_exclude_indices(self, exclude):
+        
+        exclude = re.sub(r'\[|\]', '', exclude)
+        exclude = exclude.split(",")
+
+        indices = []
+        for e in exclude:
+            if '-' in e:
+                indices += list(range(int(e.split('-')[0]),int(e.split('-')[1])+1))
+            else:
+                indices.append(int(e))
+        indices = [str(i) for i in indices]
+        #print (indices)
+        return indices
 
 
     def input_path(self, input):
@@ -50,10 +69,16 @@ class Remaining:
     def retrieve_faas(self):
         faa_dir = f"{self.get_intermediate_dir()}/faa/{self.get_project()}"
         f_reg = re.compile(f"{self.get_base()}.missense_\d+.faa")
+        f_exc = re.compile(f"{self.get_base()}.missense_({'|'.join(self.get_exclude_indices())}).faa")
+        
 
-        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f) and not f_exc.match(f)]
+        #faa_files_exclude = [f for f in os.listdir(faa_dir) if f_exc.match(f)]
 
-        return pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files])
+        try:
+            return pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files])
+        except ValueError:
+            return pd.DataFrame()
 
 
 
@@ -87,6 +112,8 @@ class Remaining:
     def remainder(self):
 
         inputs  = self.retrieve_faas()
+        print (inputs)
+        exit()
         inputs["mutations"] = inputs["mutations"].str.split(",").apply(set)
 
         outputs = self.retrieve_outputs()
@@ -122,16 +149,16 @@ if __name__ == "__main__":
                         help='The name of the input filename that is located in the data folder.')
     parser.add_argument('--project', type=str, nargs='?',
                         help='The name of the project for organization purposes')
+    parser.add_argument('--exclude', type=str, nargs='?', required=False, default='[]',
+                        help='LSF sequence of jobs to exlude from the remainder function')
 
     
     args = parser.parse_args()
-
-    input   = args.input
-    project = args.project
     
     R = Remaining(
-        input=input,
-        project=project
+        input=args.input,
+        project=args.project,
+        exclude=args.exclude
     )
     
     R.remainder()
