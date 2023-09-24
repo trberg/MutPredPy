@@ -278,11 +278,7 @@ def collect_fasta(pep_file, primary="Ensembl_proteinid_v"):
                 
 
     output = pd.DataFrame(output)
-
-    #print (output[output["Ensembl_proteinid_v"]=="ENSP00000011700.6"]) ENSP00000343837.5
-    #print (output[output["Ensembl_proteinid_v"].isin(["ENSP00000011700.6","ENSP00000243562.10","ENSP00000252444.5"])])
-    #print (output[output["Ensembl_proteinid_v"].isin(["ENSP00000350349.3"])])
-    #exit()
+    
     output = output.drop_duplicates(subset=[primary, "sequence"], keep="first")
 
     output["version"] = output["Ensembl_proteinid_v"].str.split(".").str[1]
