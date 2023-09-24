@@ -115,7 +115,9 @@ class Remaining:
 
         inputs  = self.retrieve_faas()
         inputs["mutations"] = inputs["mutations"].str.split(",").apply(set)
-
+        
+        inputs = inputs.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
+        
         outputs = self.retrieve_outputs()
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
@@ -126,7 +128,7 @@ class Remaining:
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
         both[["Ensembl_proteinid_v","gene_symbol"]] = both["ID"].str.split("|", expand=True)
-        both = both[["ID","Ensembl_proteinid_v","gene_symbol","mutations","num_mutations_faas","index_faas","Substitution","num_mutations_scored"]]
+        both = both[["ID","Ensembl_proteinid_v","gene_symbol","mutations","num_mutations_faas","Substitution"]]
 
         #print (both)
 
