@@ -143,13 +143,11 @@ class Remaining:
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
         
         both["pre_filter_count"] = both["Substitution"].apply(len)
-        print (sum(both["pre_filter_count"]))
+        print ("Pre Filter:",sum(both["pre_filter_count"]))
         
 
         both["mutations"] = both["mutations"] - both["Substitution"]
         both = both.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
-        
-        print (both)
 
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
@@ -175,7 +173,7 @@ class Remaining:
         TTN = both[both["gene_symbol"]=="TTN"][["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
         print (TTN)
         print (sum(TTN["num_mutations"]))
-        exit()
+        #exit()
         non_TTN = both[both["gene_symbol"]!="TTN"]#[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
         print (non_TTN[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
         both = non_TTN
