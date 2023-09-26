@@ -161,7 +161,8 @@ class Remaining:
     def split_and_build_lsf(self):
         
         remaining = self.remainder()
-
+        print (remaining)
+        
         mut = prep.MutPredpy(
             input=self.__input,
             project=self.__project,
