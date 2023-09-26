@@ -135,11 +135,15 @@ class Remaining:
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
+        both["pre_filter_count"] = both["Substitution"].apply(len)
+        print (sum(both["pre_filter_count"]))
         
 
         both["mutations"] = both["mutations"] - both["Substitution"]
         both = both.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
         
+        print (both)
+
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
         
@@ -160,12 +164,12 @@ class Remaining:
         
         both["Time Estimate (hrs)"] = both.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
-        #print (both[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
+        print (both[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
         #exit()
-
         print (f"Memory: {max(both['Memory Estimate (MB)'])}")
         print (f"Time: {sum(both['Time Estimate (hrs)'])}")
-
+        print (f"Mutations: {sum(both['num_mutations'])}")
+        exit()
         return both
 
 
@@ -173,6 +177,7 @@ class Remaining:
         
         remaining = self.remainder()
         print (remaining[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
+        exit()
 
         mut = prep.MutPredpy(
             input=self.__input,
