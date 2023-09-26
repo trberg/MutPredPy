@@ -131,13 +131,15 @@ class Remaining:
         
         
         outputs = self.retrieve_outputs()
-        #print (outputs)
+        print (outputs)
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
         
 
         both["mutations"] = both["mutations"] - both["Substitution"]
+        both = both.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
+        
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
         
