@@ -128,10 +128,9 @@ class Remaining:
         gene_of_interest = "\|TTN"
 
         inputs = inputs.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
-        print (inputs)
         inputs = inputs[inputs["ID"].str.contains(gene_of_interest)]
         print (inputs)
-        exit()
+        
         
         outputs = self.retrieve_outputs()
         
