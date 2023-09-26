@@ -126,7 +126,7 @@ class Remaining:
         inputs["mutations"] = inputs["mutations"].str.split(",").apply(set)
         #print (inputs)
         
-        gene_of_interest = "TTN"
+        gene_of_interest = "|TTN"
 
         inputs = inputs.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
         inputs = inputs[inputs["ID"].str.contains(gene_of_interest)]
@@ -134,6 +134,7 @@ class Remaining:
         
         
         outputs = self.retrieve_outputs()
+        print (outputs)
         inputs.groupby("ID").agg({'Substitution':lambda x: set.union(*x)}).reset_index()
         outputs = outputs[outputs["ID"].str.contains(gene_of_interest)]
         print (outputs)
