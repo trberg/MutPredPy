@@ -85,8 +85,6 @@ class Remaining:
 
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f) and not f_exc.match(f)]
         #faa_files_exclude = [f for f in os.listdir(faa_dir) if f_exc.match(f)]
-        for f in faa_files:
-            print (f)
 
         try:
             return pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files])
@@ -126,18 +124,24 @@ class Remaining:
 
         inputs  = self.retrieve_faas()
         inputs["mutations"] = inputs["mutations"].str.split(",").apply(set)
+        #print (inputs)
         
         inputs = inputs.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
+        #print (inputs)
+        
         
         outputs = self.retrieve_outputs()
+        #print (outputs)
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
-        #print (both)
+        
 
         both["mutations"] = both["mutations"] - both["Substitution"]
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
+        print (both.to_string())
+        exit()
         both[["Ensembl_proteinid","gene_symbol"]] = both["ID"].str.split("|", expand=True)
         both = both[["ID","Ensembl_proteinid","gene_symbol","mutations","num_mutations_faas","Substitution"]]
         both = both.rename(columns={"num_mutations_faas":"num_mutations"})
