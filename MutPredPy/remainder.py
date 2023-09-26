@@ -127,11 +127,11 @@ class Remaining:
         #print (inputs)
         
         inputs = inputs.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
-        #print (inputs)
+        print (inputs)
         
         
         outputs = self.retrieve_outputs()
-        #print (outputs)
+        print (outputs)
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
