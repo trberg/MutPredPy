@@ -100,7 +100,7 @@ class Remaining:
         if os.path.isfile(file) and os.path.getsize(file) > 0:
             scores = pd.read_csv(file)
 
-            scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(list)).reset_index()
+            scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(set)).reset_index()
             scores["num_mutations"] = scores["Substitution"].apply(len).astype(int)
             scores["index"] = index
         else:
@@ -135,7 +135,8 @@ class Remaining:
         
         outputs = self.retrieve_outputs()
         print (outputs)
-        outputs = outputs.groupby("ID")["Substitution"].apply(set).reset_index()
+        
+        outputs = outputs.groupby("ID").agg({'Substitution':lambda x: set.union(*x)}).reset_index()
         outputs = outputs[outputs["ID"].str.contains(gene_of_interest)]
         print (outputs)
 
