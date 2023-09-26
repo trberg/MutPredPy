@@ -177,7 +177,7 @@ class Remaining:
         print (f"Memory: {max(both['Memory Estimate (MB)'])}")
         print (f"Time: {sum(both['Time Estimate (hrs)'])}")
         print (f"Mutations: {sum(both['num_mutations'])}")
-        exit()
+        
         return both
 
 
