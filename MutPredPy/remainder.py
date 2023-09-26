@@ -170,7 +170,7 @@ class Remaining:
         both["Time Estimate (hrs)"] = both.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
         #print (set(both["Ensembl_proteinid"]))
-        TTN = both[both["gene_symbol"]=="TTN"][["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
+        TTN = both[both["gene_symbol"]=="TTN"]#[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
         print (TTN)
         print (sum(TTN["num_mutations"]))
         #exit()
