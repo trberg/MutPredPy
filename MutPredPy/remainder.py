@@ -131,7 +131,7 @@ class Remaining:
         
         
         outputs = self.retrieve_outputs()
-        print (outputs)
+        #print (outputs)
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
@@ -172,7 +172,7 @@ class Remaining:
     def split_and_build_lsf(self):
         
         remaining = self.remainder()
-        print (remaining.sort_values("Time Estimate (hrs)"))
+        print (remaining[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
 
         mut = prep.MutPredpy(
             input=self.__input,
