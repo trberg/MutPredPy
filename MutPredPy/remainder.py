@@ -140,6 +140,7 @@ class Remaining:
         #print (outputs)
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
+        both["Substitution"] = both["Substitution"].fillna("").apply(set)
         
         both["pre_filter_count"] = both["Substitution"].apply(len)
         print (sum(both["pre_filter_count"]))
