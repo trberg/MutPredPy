@@ -412,7 +412,8 @@ class MutPredpy:
         
         self.set_intermediate_directory()
         self.set_faa_output()
-
+        print (data)
+        exit()
         for index,row in data.iterrows():
 
             if number + row[variable] > threshold + 2:

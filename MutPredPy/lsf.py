@@ -197,7 +197,7 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
         if len(jobs[i]) > 0:
             template = config_template().substitute({
                 'mem': int((max(jobs[i]["Memory Minimum"]) + memory_cushion)/cores),
-                'time': "90:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
+                'time': "50:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
                 'job': f"{project}_variants",
                 'job_array': build_job_array(jobs[i]['File']),
                 'project': project,
