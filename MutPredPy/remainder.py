@@ -85,6 +85,8 @@ class Remaining:
 
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f) and not f_exc.match(f)]
         #faa_files_exclude = [f for f in os.listdir(faa_dir) if f_exc.match(f)]
+        for f in faa_files:
+            print (f)
 
         try:
             return pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files])
@@ -161,8 +163,8 @@ class Remaining:
     def split_and_build_lsf(self):
         
         remaining = self.remainder()
-        print (remaining)
-        
+        print (remaining.sort_values("Time Estimate (hrs)"))
+
         mut = prep.MutPredpy(
             input=self.__input,
             project=self.__project,
