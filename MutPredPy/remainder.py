@@ -135,7 +135,7 @@ class Remaining:
         
         outputs = self.retrieve_outputs()
         print (outputs)
-        inputs.groupby("ID").agg({'Substitution':lambda x: set.union(*x)}).reset_index()
+        outputs = outputs.groupby("ID").agg({'Substitution':lambda x: set.union(*x)}).reset_index()
         outputs = outputs[outputs["ID"].str.contains(gene_of_interest)]
         print (outputs)
 
