@@ -131,7 +131,7 @@ class Remaining:
         inputs = inputs[inputs["ID"].str.contains(gene_of_interest)]
         print (inputs)
         
-        
+
         outputs = self.retrieve_outputs()
         
         outputs = outputs.groupby("ID").agg({'Substitution':lambda x: set.union(*x)}).reset_index()
@@ -141,7 +141,7 @@ class Remaining:
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
         print (both)
-        exit()
+        #exit()
         
         both["pre_filter_count"] = both["Substitution"].apply(len)
         print ("Pre Filter:",sum(both["pre_filter_count"]))
