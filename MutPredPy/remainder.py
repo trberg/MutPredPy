@@ -169,17 +169,7 @@ class Remaining:
         
         both["Time Estimate (hrs)"] = both.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
-        #print (set(both["Ensembl_proteinid"]))
-        TTN = both[both["gene_symbol"]=="TTN"]#[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
-        print (TTN)
-        print (sum(TTN["num_mutations"]))
-        #exit()
-        non_TTN = both[both["gene_symbol"]!="TTN"]#[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
-        print (non_TTN[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
-        both = TTN
-
-        print (both[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
-        #exit()
+        
         print (f"Memory: {max(both['Memory Estimate (MB)'])}")
         print (f"Time: {sum(both['Time Estimate (hrs)'])}")
         print (f"Mutations: {sum(both['num_mutations'])}")
@@ -205,7 +195,7 @@ class Remaining:
         tech_requirements = mut.split_data(remaining, file_number=file_number)
 
         lsf.usage_report(tech_requirements)
-        lsf.build_lsf_config_file(tech_requirements, mut.get_intermediate_dir(), mut.get_project(), mut.get_base(), user=4, dry_run=mut.dry_run)
+        lsf.build_lsf_config_file(tech_requirements, mut.get_intermediate_dir(), mut.get_project(), mut.get_base(), user=5, dry_run=mut.dry_run)
 
 
 
