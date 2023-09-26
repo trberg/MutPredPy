@@ -130,14 +130,14 @@ class Remaining:
 
         inputs = inputs.groupby("ID").agg({'mutations':lambda x: set.union(*x)}).reset_index()
         inputs = inputs[inputs["ID"].str.contains(gene_of_interest)]
-        #print (inputs)
+        print (inputs)
         
         
         outputs = self.retrieve_outputs()
         
         outputs = outputs.groupby("ID").agg({'Substitution':lambda x: set.union(*x)}).reset_index()
         outputs = outputs[outputs["ID"].str.contains(gene_of_interest)]
-        #print (outputs)
+        print (outputs)
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
