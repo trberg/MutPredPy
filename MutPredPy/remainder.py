@@ -135,6 +135,7 @@ class Remaining:
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
+        both = both.drop_duplicates()
         
 
         both["mutations"] = both["mutations"] - both["Substitution"]
