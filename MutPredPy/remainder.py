@@ -158,7 +158,7 @@ class Remaining:
         
         both["Time Estimate (hrs)"] = both.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
-        print (both.sort_values("Time Estimate (hrs)"))
+        print (both[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
         exit()
 
         print (f"Memory: {max(both['Memory Estimate (MB)'])}")
