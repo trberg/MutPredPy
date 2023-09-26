@@ -135,25 +135,26 @@ class Remaining:
 
         both = inputs.merge(outputs, on="ID", suffixes=["_faas", "_scored"], how="left")
         both["Substitution"] = both["Substitution"].fillna("").apply(set)
-        both = both.drop_duplicates()
         
 
         both["mutations"] = both["mutations"] - both["Substitution"]
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
-        print (both.to_string())
-        exit()
-        both[["Ensembl_proteinid","gene_symbol"]] = both["ID"].str.split("|", expand=True)
-        both = both[["ID","Ensembl_proteinid","gene_symbol","mutations","num_mutations_faas","Substitution"]]
-        both = both.rename(columns={"num_mutations_faas":"num_mutations"})
         
+        both[["Ensembl_proteinid","gene_symbol"]] = both["ID"].str.split("|", expand=True)
+        both = both[["ID","Ensembl_proteinid","gene_symbol","mutations","num_mutations_faas"]]
+        both = both.rename(columns={"num_mutations_faas":"num_mutations"})
+
 
         fasta_file = fasta.collect_fasta(self.__fasta_location)
         fasta_file = fasta_file[["Ensembl_proteinid_v","sequence","Memory Estimate (MB)","Time per Mutation (hrs)"]]
         fasta_file = fasta_file.rename(columns={"Ensembl_proteinid_v":"Ensembl_proteinid"})
 
         both = both.merge(fasta_file, on="Ensembl_proteinid", how="left")
-        both["mutation"] = both["mutations"].apply(lambda x: " ".join(x))
+        both["mutations"] = both["mutations"].apply(lambda x: " ".join(x))
+        both = both.rename(columns={"mutations":"mutation"})
+        
+        both = both.drop_duplicates()
         #print (both)
         #exit()
         
