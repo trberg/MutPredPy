@@ -7,6 +7,7 @@ import os
 from . import prep
 from . import status
 from . import merge
+from . import remainder
 
 
 def time_minimum(x):
@@ -42,6 +43,20 @@ def command_status(args):
 def command_merge(args):
 
     merge.merge(dry_run=args.dry_run)
+
+
+def command_remainder(args):
+    
+    
+    R = remainder.Remaining(
+        input=args.input,
+        project=args.project,
+        exclude=args.exclude,
+        time=args.time,
+        dry_run=args.dry_run
+    )
+    
+    R.split_and_build_lsf()
 
 
 
@@ -115,6 +130,26 @@ def build_parser():
                 help='Run through the merging process without saving the output'
             )
     parser_mutpredMerge.set_defaults(func=command_merge)
+
+    
+
+    # ============== MutPredPy Remainder ==============
+    parser_mutpredRemainder = subparsers.add_parser(
+            "remainder", 
+            help="Find the leftover unscored variants and create new jobs."
+        )
+
+    parser_mutpredRemainder.add_argument('--input', type=str, nargs='?',
+                        help='The name of the input filename that is located in the data folder.')
+    parser_mutpredRemainder.add_argument('--project', type=str, nargs='?',
+                        help='The name of the project for organization purposes')
+    parser_mutpredRemainder.add_argument('--exclude', type=str, nargs='?', required=False, default='[]',
+                        help='LSF sequence of jobs to exlude from the remainder function')
+    parser_mutpredRemainder.add_argument('--time', type=time_minimum, nargs="?", default=24,
+                        help="Target time in hours to run the jobs")
+    parser_mutpredRemainder.add_argument("--dry_run", action="store_true")
+
+    parser_mutpredRemainder.set_defaults(func=command_remainder)
 
     return parser
 
