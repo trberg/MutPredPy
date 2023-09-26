@@ -151,14 +151,15 @@ class Remaining:
         fasta_file = fasta_file.rename(columns={"Ensembl_proteinid_v":"Ensembl_proteinid"})
 
         both = both.merge(fasta_file, on="Ensembl_proteinid", how="left")
-        both["mutations"] = both["mutations"].apply(lambda x: " ".join(x))
+        both["mutations"] = both["mutations"].apply(lambda x: " ".join(sorted(x)))
         both = both.rename(columns={"mutations":"mutation"})
         
         both = both.drop_duplicates()
-        #print (both)
-        #exit()
         
         both["Time Estimate (hrs)"] = both.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
+
+        print (both.sort_values("Time Estimate (hrs)"))
+        exit()
 
         print (f"Memory: {max(both['Memory Estimate (MB)'])}")
         print (f"Time: {sum(both['Time Estimate (hrs)'])}")
