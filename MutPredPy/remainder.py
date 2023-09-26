@@ -3,18 +3,27 @@ import argparse
 import re
 import os
 
-#from . import fasta
-import fasta
+from . import fasta
+from . import fasta
+from . import prep
+from . import lsf
+
+#import fasta
+#import prep
+#import lsf
 
 
 class Remaining:
-    def __init__(self, input, project, exclude):
+    def __init__(self, input, project, exclude, time, dry_run):
         
         self.__intermediate_dir = "intermediates"
         self.__project = project
         self.__input = self.input_path(input)
         self.__base = input.split("/")[-1].split(".")[0]
         self.__exclude_indices = self.generate_exclude_indices(exclude)
+
+        self.time = time
+        self.dry_run = dry_run
 
         self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
 
@@ -127,22 +136,56 @@ class Remaining:
         both["mutations"] = both["mutations"] - both["Substitution"]
         both["num_mutations_faas"] = both["mutations"].apply(len)
         both = both[both["num_mutations_faas"]>0]
-        both[["Ensembl_proteinid_v","gene_symbol"]] = both["ID"].str.split("|", expand=True)
-        both = both[["ID","Ensembl_proteinid_v","gene_symbol","mutations","num_mutations_faas","Substitution"]]
-
-        #print (both)
+        both[["Ensembl_proteinid","gene_symbol"]] = both["ID"].str.split("|", expand=True)
+        both = both[["ID","Ensembl_proteinid","gene_symbol","mutations","num_mutations_faas","Substitution"]]
+        both = both.rename(columns={"num_mutations_faas":"num_mutations"})
+        
 
         fasta_file = fasta.collect_fasta(self.__fasta_location)
         fasta_file = fasta_file[["Ensembl_proteinid_v","sequence","Memory Estimate (MB)","Time per Mutation (hrs)"]]
+        fasta_file = fasta_file.rename(columns={"Ensembl_proteinid_v":"Ensembl_proteinid"})
 
-        both = both.merge(fasta_file, on="Ensembl_proteinid_v", how="left")
-        print (both)
+        both = both.merge(fasta_file, on="Ensembl_proteinid", how="left")
+        both["mutation"] = both["mutations"].apply(lambda x: " ".join(x))
+        #print (both)
+        #exit()
+        
+        both["Time Estimate (hrs)"] = both.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
         print (f"Memory: {max(both['Memory Estimate (MB)'])}")
-        print (f"Time: {sum(both['Time per Mutation (hrs)'])}")
+        print (f"Time: {sum(both['Time Estimate (hrs)'])}")
+
+        return both
+
+
+    def split_and_build_lsf(self):
+        
+        remaining = self.remainder()
+
+        mut = prep.MutPredpy(
+            input=self.__input,
+            project=self.__project,
+            time=self.time,
+            dry_run=self.dry_run,
+            canonical=False
+        )
+        file_number = max([int(f.split(".")[-2].split("_")[-1]) for f in os.listdir(mut.set_faa_output())]) + 1
+        
+        tech_requirements = mut.split_data(remaining, file_number=file_number)
+
+        lsf.usage_report(tech_requirements)
+        lsf.build_lsf_config_file(tech_requirements, mut.get_intermediate_dir(), mut.get_project(), mut.get_base(), user=4, dry_run=mut.dry_run)
+
 
 
 if __name__ == "__main__":
+
+    def time_minimum(x):
+        x = int(x)
+
+        if x < 5:
+            raise argparse.ArgumentTypeError("Minimum time is 5 hours")
+        return x
 
     parser = argparse.ArgumentParser(description='Check the status of a currently running or a previously ran MutPred2 job.')
     
@@ -153,6 +196,9 @@ if __name__ == "__main__":
                         help='The name of the project for organization purposes')
     parser.add_argument('--exclude', type=str, nargs='?', required=False, default='[]',
                         help='LSF sequence of jobs to exlude from the remainder function')
+    parser.add_argument('--time', type=time_minimum, nargs="?", default=24,
+                        help="Target time in hours to run the jobs")
+    parser.add_argument("--dry_run", action="store_true")
 
     
     args = parser.parse_args()
@@ -160,9 +206,12 @@ if __name__ == "__main__":
     R = Remaining(
         input=args.input,
         project=args.project,
-        exclude=args.exclude
+        exclude=args.exclude,
+        time=args.time,
+        dry_run=args.dry_run
     )
     
-    R.remainder()
+    remaining_data = R.split_and_build_lsf()
+
 
     

@@ -9,6 +9,9 @@ import re
 from . import fasta
 from . import lsf
 
+#import lsf
+#import fasta
+
 class MutPredpy:
     def __init__(self, input, project, time, dry_run, canonical):
         
@@ -74,7 +77,7 @@ class MutPredpy:
             self.__annotation = "dbNSFP"
 
         else:
-            self.__annotation == False
+            self.__annotation = False
         
         return self.__annotation
     
@@ -398,10 +401,9 @@ class MutPredpy:
          
 
 
-    def split_data(self, data):
+    def split_data(self, data, file_number=1):
 
         number = 0
-        file_number = 1
         job_information = []
         memory = []
         threshold = self.get_time()
