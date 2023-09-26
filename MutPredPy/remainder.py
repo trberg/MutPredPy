@@ -168,8 +168,8 @@ class Remaining:
         TTN = both[both["gene_symbol"]=="TTN"][["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
         print (TTN)
 
-        non_TTN = both[both["gene_symbol"]!="TTN"][["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
-        print (non_TTN.sort_values("Time Estimate (hrs)"))
+        non_TTN = both[both["gene_symbol"]!="TTN"]#[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]]
+        print (non_TTN[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
         both = non_TTN
 
         print (both[["ID","Ensembl_proteinid","mutation","num_mutations","Time Estimate (hrs)"]].sort_values("Time Estimate (hrs)"))
