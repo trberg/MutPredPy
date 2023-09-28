@@ -34,10 +34,21 @@ def command_mutpred_prep(args):
 def command_status(args):
     summary = status.Status(
         input=args.input,
-        project=args.project
+        project=args.project,
+        all=args.all
     )
 
-    summary.mutpred_status()
+    summary.mutpred_summary()
+
+
+def command_debug(args):
+    mutpred_stat = status.Status(
+        input=args.input,
+        project=args.project,
+        all=args.all
+    )
+
+    mutpred_stat.mutupred_debugging()
 
 
 def command_merge(args):
@@ -115,7 +126,33 @@ def build_parser():
                 '--project', type=str, nargs='?',
                 help='The name of the project for organization purposes'
             )
+    parser_mutpredStatus.add_argument(
+                "--all", action="store_true", 
+                help='Show the progress status of all files and jobs'
+            )
     parser_mutpredStatus.set_defaults(func=command_status)
+
+
+
+    # ============== MutPredPy Status ==============
+    parser_mutpredDebug = subparsers.add_parser(
+            "debug", 
+            help="Check the status of a given job with the given parameters"
+        )
+
+    parser_mutpredDebug.add_argument(
+                '--input', type=str, nargs='?',
+                help='The name of the input filename that is located in the data folder'
+            )
+    parser_mutpredDebug.add_argument(
+                '--project', type=str, nargs='?',
+                help='The name of the project for organization purposes'
+            )
+    parser_mutpredDebug.add_argument(
+                "--all", action="store_true", 
+                help='Show the progress status of all files and jobs'
+            )
+    parser_mutpredDebug.set_defaults(func=command_debug)
 
 
 

@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import re
 
 from . import fasta
 
@@ -27,6 +28,11 @@ def existing_scores():
 def collect_scores():
 
     score_dir = os.listdir("intermediates/scores/")
+    score_pattern = re.compile(".*\.missense_output_\d+.txt$")
+
+    scores = [s for s in score_dir if score_pattern.match(s)]
+    print (scores)
+    exit()
     cur_file_num = 1
     score_df = []
 
