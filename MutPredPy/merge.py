@@ -71,6 +71,8 @@ def collect_scores():
                 if len(data) > 0:
                     #print (data)
                     data[cols] = data["ID"].str.split("|",expand=True)
+                    if "gene_symbol" in cols:
+                        data = data[data["gene_symbol"]!="None"]
                     try:
                         data["hgvsp"] = data["ensembl_protein_id"] + ":p." + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
                     except:
