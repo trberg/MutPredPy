@@ -73,7 +73,7 @@ def collect_scores():
                     data[cols] = data["ID"].str.split("|",expand=True)
                     try:
                         data["hgvsp"] = data["ensembl_protein_id"] + ":p." + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
-                    except IndexError:
+                    except:
                         print (filename)
                         print (data)
                         exit()
