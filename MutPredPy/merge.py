@@ -71,7 +71,11 @@ def collect_scores():
                 if len(data) > 0:
                     #print (data)
                     data[cols] = data["ID"].str.split("|",expand=True)
-                    data["hgvsp"] = data["ensembl_protein_id"] + ":p." + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
+                    try:
+                        data["hgvsp"] = data["ensembl_protein_id"] + ":p." + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
+                    except IndexError:
+                        print (data)
+                        exit()
                     
                     try:
                         data["Molecular Mechanism"] = data["Molecular mechanisms with Pr >= 0.01 and P < 0.05"]

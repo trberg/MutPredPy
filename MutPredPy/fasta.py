@@ -90,11 +90,8 @@ def clean_FASTA_sequence(sequence):
 
 
 def mutation_mapping(x):
-    try:
-        loc = re.findall(r'\d+', x)[0]
-    except IndexError:
-        print (x)
-        exit()
+    
+    loc = re.findall(r'\d+', x)[0]
 
     ref, alt = x.replace(str(loc),"|").split("|")
     
