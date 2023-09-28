@@ -74,6 +74,7 @@ def collect_scores():
                     try:
                         data["hgvsp"] = data["ensembl_protein_id"] + ":p." + data["Substitution"].apply(lambda x: fasta.mutation_mapping(x))
                     except IndexError:
+                        print (filename)
                         print (data)
                         exit()
                     
