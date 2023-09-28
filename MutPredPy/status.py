@@ -8,12 +8,13 @@ from . import fasta
 
 
 class Status:
-    def __init__(self, input, project):
+    def __init__(self, input, project, all):
         
         self.__intermediate_dir = "intermediates"
         self.__project = project
         self.__input = self.input_path(input)
         self.__base = input.split("/")[-1].split(".")[0]
+        self.__show_all = all
 
     
     def get_intermediate_dir(self):
@@ -44,22 +45,53 @@ class Status:
             exit()
 
 
+    def get_mutpred_output_file(self, index):
+
+        file = f"{self.get_base()}.missense_output_{index}.txt"
+        return file
+    
+
+    def get_mutpred_output_file_path(self, index):
+
+        directory = self.get_intermediate_dir()
+        file = self.get_mutpred_output_file(index)
+        return f"{directory}/scores/{file}"
+
+
+
+    def get_mutpred_input_file(self, index):
+        file = f"{self.get_base()}.missense_{index}.faa"
+        return file
+    
+    def get_mutpred_input_file_path(self, project, index):
+
+        directory = self.get_intermediate_dir()
+        file = self.get_mutpred_input_file(index)
+        return f"{directory}/faa/{project}/{file}"
+    
 
     def read_mutpred_output(self, file):
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
 
         if os.path.isfile(file) and os.path.getsize(file) > 0:
+            
             scores = pd.read_csv(file)
-            scores = scores.drop_duplicates()
 
+            scores = scores.drop_duplicates()
+            
             scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(list)).reset_index()
+            
             scores["num_mutations"] = scores["Substitution"].apply(len).astype(int)
             scores["index"] = index
+            
         else:
             scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
-
+        
         return scores
+
+        
+        
     
 
     
@@ -103,14 +135,6 @@ class Status:
         
         log_files = log_files.merge(latest_err_logs, on=["index","type","job"], how="inner")
 
-        #print (log_files)
-        #print (latest_err_logs)
-        #exit()
-
-        #latest_job = max(log_files["job"])
-
-        #log_files = log_files[log_files["job"]==latest_job]
-
         log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], row["job"]), axis=1)
         log_files = log_files[["index", "hasError", "Error"]]
         return log_files
@@ -136,16 +160,19 @@ class Status:
     
     def mutpred_status(self):
 
-        base = self.get_base()
-
         faa = self.retrieve_faas()
         
         scores = self.retrieve_outputs()
 
-        logs = self.retrieve_logs()
-
         status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
         status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
+
+        return status
+
+    
+    def mutpred_logs(self, status):
+
+        logs = self.retrieve_logs()
 
         summary = pd.DataFrame(status.groupby("index")["num_mutations_faa","num_mutations_scored"].agg(sum)).reset_index()
         summary["index"] = summary["index"].astype(int)
@@ -154,6 +181,84 @@ class Status:
         summary["remaining_mutations"] = summary["num_mutations_faa"] - summary["num_mutations_scored"]
 
         summary = summary.merge(logs, on="index", how="left")
+        
+        return summary
+
+    
+    def mutupred_debugging(self):
+
+        status = self.mutpred_status()
+
+        logs = self.mutpred_logs(status)
+
+        
+        for index, row in logs.iterrows():
+            #print (row["Error"])
+            if "Subscript indices must either be real positive integers or logicals." in row["Error"]:
+                output = self.get_mutpred_output_file_path(row['index'])
+                #print (output)
+
+                mutpred_scores = self.read_mutpred_output(output)
+                #print (mutpred_scores)
+                
+                input_faa = fasta.read_mutpred_input_fasta(self.get_mutpred_input_file_path(self.get_project(), row['index']))
+                input_faa["mutations"] = input_faa["mutations"].str.replace(","," ")
+                #print (input_faa)
+
+                problem = input_faa[~input_faa["ID"].isin(mutpred_scores["ID"])].sort_values("line", ascending=True).iloc[0]
+
+                print (f"Problem: {problem['index']}")
+                print (f"Mutations: {problem['mutations']}")
+                #print (f"Sequence: {problem['sequence']}")
+                print(fasta.check_sequences(problem))
+
+                cur_sequence = problem["sequence"]
+                position_adjustment = 0
+                mutations = sorted([(int(re.findall(r'\d+', m)[0]), m.replace(str(re.findall(r'\d+', m)[0]),"|").split("|")[0]) for m in problem["mutations"].split(" ")])
+
+                for mut in mutations:
+                    
+                    loc = mut[0]
+
+                    ref = mut[1]
+
+                    annotation = f" [{loc}:{ref}]>"
+                    annotation_end = "< "
+
+
+                    position = int(loc)+position_adjustment
+                    cur_sequence = cur_sequence[:position] + annotation + cur_sequence[position:position+1] + annotation_end + cur_sequence[position+1:]
+
+                    position_adjustment += len(annotation) + len(annotation_end)
+                    
+                    #print (position)
+                    #print (cur_sequence[position-5:position+15])
+
+                    #print (ref, loc, alt)
+                    #print (problem['sequence'][position-5:position+6])
+                    #exit()
+                print ()
+                print (cur_sequence)
+                
+                exit()
+
+                print (mutpred_scores)
+                #print (input_faa)
+                #print (row)
+            else:
+                pass
+        #exit()
+
+
+
+    def mutpred_summary(self):
+
+        base = self.get_base()
+
+        status = self.mutpred_status()
+
+        summary = self.mutpred_logs(status)
+
         summary["hasError"].fillna(False, inplace=True)
         summary["Error"].fillna("", inplace=True)
 
@@ -164,8 +269,10 @@ class Status:
                 print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
             elif row['percent'] < 100 and row['hasError']:
                 print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\t{row['Error']}")
-            else:
+            elif self.__show_all:
                 print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\tComplete!")
+            else:
+                pass
 
         print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 

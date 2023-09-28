@@ -31,8 +31,9 @@ inv_amino_acid_mapping = {v: k for k, v in amino_acid_mapping.items()}
 
 
 def check_sequences(row):
+    print (row)
 
-    mutations = row["mutation"].split(" ")
+    mutations = row["mutations"].split(" ")
     mutation_positions  = [int(mut[1:-1]) for mut in mutations]
     ref_AA              = [mut[0] for mut in mutations]
     sequence            = row["sequence"]
@@ -188,13 +189,15 @@ def read_mutpred_input_fasta(faa_file):
 
     temp = {
             "ID": "",
-            "mutations":""
+            "line":"",
+            "mutations":"",
+            "sequence": ""
         }
     
     index = faa_file.split("/")[-1].split(".")[-2].split("_")[-1]
     
     with open(faa_file, "r") as fasta:
-        
+        cur_line = 1
         for line in fasta:
             
             if line.startswith(">"):
@@ -210,10 +213,12 @@ def read_mutpred_input_fasta(faa_file):
 
                 temp["ID"] = key
                 temp["mutations"] = mutations
+                temp["line"] = cur_line
+                cur_line += 1
                 
                 
             else:
-                pass
+                temp["sequence"] += line.replace("\n","")
                 
         else:
             output.append(temp)
