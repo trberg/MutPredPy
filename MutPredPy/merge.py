@@ -2,8 +2,8 @@ import pandas as pd
 import os
 import re
 
-from . import fasta
-
+#from . import fasta
+import fasta
 
 
 def write_output(data, dry_run):
@@ -37,7 +37,7 @@ def collect_scores():
 
     for filename in scores:
 
-        print (f"Reading {cur_file_num} of {len(score_dir)} files.", end="\r")
+        print (f"Reading {cur_file_num} of {len(scores)} files.", end="\r")
         
         if filename == "scores":
             mutType = 'PASS'
@@ -124,3 +124,57 @@ def merge(dry_run):
 
     write_output(merged_df, dry_run)
     print (f"{added_scores} scored mutations added.")
+
+
+
+if __name__=="__main__":
+
+    id_mappings = fasta.collect_fasta("/Users/bergqt01/Research/MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa",primary="Ensembl_transcriptid")
+    id_mappings = id_mappings[["Ensembl_proteinid_v","Ensembl_transcriptid"]]
+    id_mappings.rename(columns={"Ensembl_proteinid_v":"Ensembl_proteinid"}, inplace=True)
+
+
+    def collect_value(x, val):
+        cur_dict = {k.split("=")[0]:k.split("=")[1] for k in x.split(";")}
+        
+        if val in cur_dict.keys():
+            protein = cur_dict[val]#.split(":")[0]
+        else:
+            protein = "."
+        return protein
+    
+
+    f = "/Users/bergqt01/Research/MutPredPy/inputs/nilah/gnomad.final_set.vcf"
+
+    header_rows = []
+    header_info = ""
+    for i, line in enumerate(open(f)):
+        if line.startswith('##'):
+            header_rows.append(i)
+            header_info += line
+
+    columns = []
+    for line in header_info.split("\n"):
+        if "ID=ANN" in line:
+            columns = line.split("'")[1].split(" | ")
+    #print (columns)
+
+    inputs = pd.read_csv(f, sep="\t", skiprows = [i for i, line in enumerate(open(f)) if line.startswith('##')])
+    inputs["INFO"] = inputs["INFO"].apply(lambda x: collect_value(x, "ANN"))
+    #print (inputs)
+    #exit()
+    inputs["INFO"] = inputs["INFO"].str.split(",") 
+    inputs = inputs.explode("INFO")
+    inputs[columns] = inputs["INFO"].str.split("|", expand=True)
+    
+    inputs = inputs[['#CHROM','POS','ID','REF','ALT','Annotation', 'Annotation_Impact', 'Feature_ID', 'Gene_Name', 'Transcript_BioType', 'HGVS.p']]
+    inputs = inputs[inputs["Annotation"]=="missense_variant"]
+    inputs["Substitution"] = inputs["HGVS.p"].apply(lambda x: fasta.mutation_mapping(x.split(".")[-1]))
+    inputs = inputs.merge(id_mappings, left_on="Feature_ID", right_on="Ensembl_transcriptid")
+    print (inputs)
+
+    scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")
+    print (scores)
+
+    scored = inputs.merge(scores, left_on=["Ensembl_proteinid","Substitution"], right_on=["ensembl_protein_id","Substitution"], how="inner")
+    print (scored)
