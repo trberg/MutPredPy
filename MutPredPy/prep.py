@@ -21,6 +21,8 @@ class MutPredpy:
         self.__base = input.split("/")[-1].split(".")[0]
         self.__time = time
 
+        self.__fasta_file_number_start = 1
+
         self.dry_run = dry_run
         self.canonical = canonical
 
@@ -121,6 +123,9 @@ class MutPredpy:
                 print (f"(Dry Run) {faa_dir} created")
             else:
                 os.mkdir(f"{faa_dir}")
+        elif os.path.exists(f"{faa_dir}") and len(os.listdir(f"{faa_dir}")>0):
+            self.__fasta_file_number_start = max([int(f.split(".")[-2].split("_")[-1]) for f in os.listdir(f"{faa_dir}")]) + 1
+
 
         project_output = f"{self.__intermediate_dir}/faa/{self.__project}"
         if not os.path.exists(f"{project_output}"):
@@ -524,7 +529,7 @@ class MutPredpy:
 
             #self.summary(self.variant_data)
             #print (self.variant_data)
-            tech_requirements = self.split_data(self.variant_data)
+            tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
             user = 1
             if user == 1:
                 per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=1)
