@@ -13,8 +13,8 @@ from . import remainder
 def time_minimum(x):
     x = int(x)
 
-    if x < 5:
-        raise argparse.ArgumentTypeError("Minimum time is 5 hours")
+    if x < 2:
+        raise argparse.ArgumentTypeError("Minimum time is 2 hours")
     return x
 
 
