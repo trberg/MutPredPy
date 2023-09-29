@@ -2,8 +2,8 @@ import pandas as pd
 import os
 import re
 
-#from . import fasta
-import fasta
+from . import fasta
+#import fasta
 
 
 def write_output(data, dry_run):

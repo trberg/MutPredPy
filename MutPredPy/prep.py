@@ -523,15 +523,20 @@ class MutPredpy:
             #print (self.variant_data)
 
             #self.summary(self.variant_data)
-
+            #print (self.variant_data)
             tech_requirements = self.split_data(self.variant_data)
+            user = 1
+            if user == 1:
+                per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=1)
 
-            per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=2)
+                for user in range(len(per_user_tech_requirements)):
+                    lsf.usage_report(per_user_tech_requirements[user])
 
-            for user in range(len(per_user_tech_requirements)):
-                lsf.usage_report(per_user_tech_requirements[user])
+                    lsf.build_lsf_config_file(per_user_tech_requirements[user], self.get_intermediate_dir(), self.get_project(), self.get_base(), user, self.dry_run)
+            else:
+                lsf.usage_report(tech_requirements)
 
-                lsf.build_lsf_config_file(per_user_tech_requirements[user], self.get_intermediate_dir(), self.get_project(), self.get_base(), user, self.dry_run)
+                lsf.build_lsf_config_file(tech_requirements, self.get_intermediate_dir(), self.get_project(), self.get_base(), user, self.dry_run)
 
         else:
             print (f"HGVSp key not found in input columns -> [{','.join(self.variant_data.columns)}]")
