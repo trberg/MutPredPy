@@ -227,9 +227,10 @@ class Status:
 
 
                     position = int(loc)+position_adjustment
-                    cur_sequence = cur_sequence[:position] + annotation + cur_sequence[position:position+1] + annotation_end + cur_sequence[position+1:]
+                    if ref != cur_sequence[position]:
+                        cur_sequence = cur_sequence[:position] + annotation + cur_sequence[position:position+1] + annotation_end + cur_sequence[position+1:]
 
-                    position_adjustment += len(annotation) + len(annotation_end)
+                        position_adjustment += len(annotation) + len(annotation_end)
                     
                     #print (position)
                     #print (cur_sequence[position-5:position+15])
