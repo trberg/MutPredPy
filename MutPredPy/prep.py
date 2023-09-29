@@ -507,7 +507,8 @@ class MutPredpy:
             self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
             self.variant_data = self.sequence_quality_check(self.variant_data)
-
+            print (self.variant_data)
+            exit()
 
             ## Check if any sequences are invalid
             not_passed = self.variant_data[self.variant_data["status"]==False]
