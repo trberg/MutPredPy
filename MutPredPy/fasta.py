@@ -31,9 +31,9 @@ inv_amino_acid_mapping = {v: k for k, v in amino_acid_mapping.items()}
 
 
 def check_sequences(row):
-    print (row)
+    #print (row)
 
-    mutations = row["mutations"].split(" ")
+    mutations = row["mutation"].split(" ")
     mutation_positions  = [int(mut[1:-1]) for mut in mutations]
     ref_AA              = [mut[0] for mut in mutations]
     sequence            = row["sequence"]
