@@ -194,8 +194,12 @@ class Status:
 
         
         for index, row in logs.iterrows():
+            print ("=================")
+            print (row)
+            print (row["index"])
             print (row["Error"])
             print (row["hasError"])
+            print ("=================")
             if row["hasError"] and "Subscript indices must either be real positive integers or logicals." in row["Error"]:
                 output = self.get_mutpred_output_file_path(row['index'])
                 #print (output)
