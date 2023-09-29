@@ -202,19 +202,19 @@ class Status:
                 #print (mutpred_scores)
                 
                 input_faa = fasta.read_mutpred_input_fasta(self.get_mutpred_input_file_path(self.get_project(), row['index']))
-                input_faa["mutations"] = input_faa["mutations"].str.replace(","," ")
+                input_faa["mutation"] = input_faa["mutations"].str.replace(","," ")
                 #print (input_faa)
 
                 problem = input_faa[~input_faa["ID"].isin(mutpred_scores["ID"])].sort_values("line", ascending=True).iloc[0]
 
                 print (f"Problem: {problem['index']}")
-                print (f"Mutations: {problem['mutations']}")
+                print (f"Mutations: {problem['mutation']}")
                 #print (f"Sequence: {problem['sequence']}")
                 print(fasta.check_sequences(problem))
 
                 cur_sequence = problem["sequence"]
                 position_adjustment = 0
-                mutations = sorted([(int(re.findall(r'\d+', m)[0]), m.replace(str(re.findall(r'\d+', m)[0]),"|").split("|")[0]) for m in problem["mutations"].split(" ")])
+                mutations = sorted([(int(re.findall(r'\d+', m)[0]), m.replace(str(re.findall(r'\d+', m)[0]),"|").split("|")[0]) for m in problem["mutation"].split(" ")])
 
                 for mut in mutations:
                     
@@ -237,7 +237,7 @@ class Status:
                     #print (ref, loc, alt)
                     #print (problem['sequence'][position-5:position+6])
                     #exit()
-                print ()
+                #print ()
                 print (cur_sequence)
                 
                 exit()
