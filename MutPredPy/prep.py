@@ -329,6 +329,8 @@ class MutPredpy:
 
 
     def sequence_quality_check(self, data):
+        
+        data = data[~data["Ensembl_proteinid"].isin(["ENSP00000501372.1", "ENSP00000500814.2", "ENSP00000229022.5"])]
 
         data["sequence"] = data["sequence"].apply(lambda x: fasta.clean_FASTA_sequence(x))
         data[["status","Sequence Errors", "Mutation Errors"]] = data.apply(lambda x: pd.Series(fasta.check_sequences(x)), axis=1)
@@ -507,8 +509,6 @@ class MutPredpy:
             self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
             self.variant_data = self.sequence_quality_check(self.variant_data)
-            print (self.variant_data)
-            exit()
 
             ## Check if any sequences are invalid
             not_passed = self.variant_data[self.variant_data["status"]==False]
@@ -557,7 +557,7 @@ if __name__ == "__main__":
     def time_minimum(x):
         x = int(x)
 
-        if x < 5:
+        if x < 3:
             raise argparse.ArgumentTypeError("Minimum time is 5 hours")
         return x
     
