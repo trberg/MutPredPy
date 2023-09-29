@@ -123,7 +123,7 @@ class MutPredpy:
                 print (f"(Dry Run) {faa_dir} created")
             else:
                 os.mkdir(f"{faa_dir}")
-        elif os.path.exists(f"{faa_dir}") and len(os.listdir(f"{faa_dir}")>0):
+        elif os.path.exists(f"{faa_dir}") and len(os.listdir(f"{faa_dir}"))>0:
             self.__fasta_file_number_start = max([int(f.split(".")[-2].split("_")[-1]) for f in os.listdir(f"{faa_dir}")]) + 1
 
 
