@@ -126,10 +126,10 @@ class MutPredpy:
 
 
         project_output = f"{self.__intermediate_dir}/faa/{self.__project}"
-        print (project_output)
-        print ("Exists", os.path.exists(f"{project_output}"))
-        print ("Size", len(os.listdir(f"{project_output}")))
-        print (os.listdir(f"{project_output}"))
+        #print (project_output)
+        #print ("Exists", os.path.exists(f"{project_output}"))
+        #print ("Size", len(os.listdir(f"{project_output}")))
+        #print (os.listdir(f"{project_output}"))
         
         
         if not os.path.exists(f"{project_output}"):
@@ -139,8 +139,8 @@ class MutPredpy:
                 os.mkdir(f"{project_output}")
         elif os.path.exists(f"{project_output}") and len(os.listdir(f"{project_output}"))>0:
             self.__fasta_file_number_start = max([int(f.split(".")[-2].split("_")[-1]) for f in os.listdir(f"{project_output}")]) + 1
-        print (self.__fasta_file_number_start)
-        exit()
+        #print (self.__fasta_file_number_start)
+        #exit()
         return project_output
 
 
