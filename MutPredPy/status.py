@@ -206,7 +206,7 @@ class Status:
                 #print (input_faa)
 
                 problem = input_faa[~input_faa["ID"].isin(mutpred_scores["ID"])].sort_values("line", ascending=True).iloc[0]
-
+                print (f"============ {problem['index']} ============")
                 print (f"Problem: {problem['index']}")
                 print (f"Mutations: {problem['mutation']}")
                 #print (f"Sequence: {problem['sequence']}")
@@ -240,11 +240,6 @@ class Status:
                 #print ()
                 print (cur_sequence)
                 
-                exit()
-
-                print (mutpred_scores)
-                #print (input_faa)
-                #print (row)
             else:
                 pass
         #exit()
