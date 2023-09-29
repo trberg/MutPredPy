@@ -417,16 +417,12 @@ class MutPredpy:
 
     def split_data(self, data, file_number=1):
         
-        print ("Start",file_number)
         number = 0
         job_information = []
         memory = []
         threshold = self.get_time()
         variable  = "Time Estimate (hrs)"
         
-        
-        self.set_intermediate_directory()
-        self.set_faa_output()
         
         for index,row in data.iterrows():
 
@@ -538,6 +534,11 @@ class MutPredpy:
 
             #self.summary(self.variant_data)
             #print (self.variant_data)
+
+            self.set_intermediate_directory()
+            
+            self.set_faa_output()
+
             tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
             user = 1
             if user == 1:
