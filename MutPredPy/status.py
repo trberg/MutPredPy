@@ -218,7 +218,7 @@ class Status:
 
                 for mut in mutations:
                     
-                    loc = mut[0]
+                    loc = mut[0] - 1
 
                     ref = mut[1]
 
