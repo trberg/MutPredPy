@@ -191,15 +191,17 @@ class Status:
         status = self.mutpred_status()
 
         logs = self.mutpred_logs(status)
+        logs["hasError"].fillna(False, inplace=True)
+        logs["Error"].fillna("",inplace=True)
 
         
         for index, row in logs.iterrows():
-            print ("=================")
-            print (row)
-            print (row["index"])
-            print (row["Error"])
-            print (row["hasError"])
-            print ("=================")
+            #print ("=================")
+            #print (row)
+            #print (row["index"])
+            #print (row["Error"])
+            #print (row["hasError"])
+            #print ("=================")
             if row["hasError"] and "Subscript indices must either be real positive integers or logicals." in row["Error"]:
                 output = self.get_mutpred_output_file_path(row['index'])
                 #print (output)
@@ -213,6 +215,7 @@ class Status:
 
                 problem = input_faa[~input_faa["ID"].isin(mutpred_scores["ID"])].sort_values("line", ascending=True).iloc[0]
                 print (f"============ {problem['index']} ============")
+                print (f"Error: {row['Error']}")
                 print (f"Problem: {problem['index']}")
                 print (f"Mutations: {problem['mutation']}")
                 #print (f"Sequence: {problem['sequence']}")
