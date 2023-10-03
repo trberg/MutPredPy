@@ -126,10 +126,6 @@ class MutPredpy:
 
 
         project_output = f"{self.__intermediate_dir}/faa/{self.__project}"
-        #print (project_output)
-        #print ("Exists", os.path.exists(f"{project_output}"))
-        #print ("Size", len(os.listdir(f"{project_output}")))
-        #print (os.listdir(f"{project_output}"))
         
         
         if not os.path.exists(f"{project_output}"):
@@ -206,34 +202,45 @@ class MutPredpy:
             try:
                 data["Ensembl_proteinid"] = data["Ensembl_proteinid"].str.split(";")
             except KeyError:
+                print ("No Ensembl_proteinid column found")
                 return data, False
             
             try:
                 data["aapos"] = data["aapos"].astype(str)
                 data["aapos"] = data["aapos"].str.split(";")
             except KeyError:
+                print ("No aapos column found")
                 return data, False
             
             try:
                 data["HGVSp_VEP"] = data["HGVSp_VEP"].str.split(";")
             except KeyError:
+                print ("No HGVSp_VEP column found")
                 return data, False
             
             try:
                 data["HGVSp_ANNOVAR"] = data["HGVSp_ANNOVAR"].str.split(";")
             except KeyError:
+                print ("No HGVSp_ANNOVAR column found")
                 return data, False
             
             try:
                 data["VEP_canonical"] = data["VEP_canonical"].str.split(";")
             except KeyError:
+                print ("No VEP_canonical column found")
                 return data, False
             
             data = data[["#chr","pos(1-based)","ref","alt","aaref","aaalt","aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"]]
 
             data = data.explode(["aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"])
+
+            data["hgvsp"] = data.apply(lambda row: fasta.collect_dbNSFP_hgvsp(row["Ensembl_proteinid"], fasta.collect_dbNSFP_mutations(row)), axis=1)
+
+            #print (data)
+            #exit()
             
             return data, True
+        
         elif self.file_format == "VCF-info" and self.annotation == "SnpEff":
             
             columns = []
@@ -269,26 +276,89 @@ class MutPredpy:
             return data
         
         return data
+
+
+    def cur_max_sequence_version(self, data):
+
+        data["version"] = data["Ensembl_transcriptid"].str.split(".").str[-1]
+
+        left_data = data.copy()
+
+        data = data[["Ensembl_proteinid","version"]]
+        data = pd.DataFrame(data.groupby("Ensembl_proteinid")["version"].max()).reset_index()
+        data.rename(columns={"version": "latest_version"}, inplace=True)
+
+        data = left_data.merge(data, on="Ensembl_proteinid", how="left")
+
+        data = data.drop_duplicates(subset=["Ensembl_proteinid","Ensembl_transcriptid"])
+
+        return data
     
+
+    def max_sequence_version(self, data, fasta):
+
+        seq_latest_versions = pd.DataFrame(fasta.groupby("Ensembl_proteinid")["version"].max()).reset_index()
+        seq_latest_versions.rename(columns={"version": "latest_version"}, inplace=True)
+
+        data = data.merge(seq_latest_versions, on="Ensembl_proteinid", how="left")
+
+        return data
+    
+    
+    def alt_sequences(self, data):
+        
+        mutations = data["mutation"]
+
+        fasta_seqs = fasta.collect_fasta(pep_file=self.__fasta_location, drop_dups=False)
+
+        alts = fasta_seqs[(fasta_seqs["Ensembl_geneid"].isin(data["Ensembl_geneid"])) | (fasta_seqs["Ensembl_transcriptid"].isin(data["Ensembl_transcriptid"]))].drop_duplicates()
+        alts = alts[["Ensembl_proteinid","Ensembl_geneid","Ensembl_transcriptid","sequence","version"]]
+        
+        alts = alts.merge(mutations, how="cross")
+        
+        alts["alignment_score"] = alts.apply(fasta.alignment_score, axis=1)
+        alts = alts[alts["alignment_score"]==1]
+        alts["num_mutations"] = alts["mutation"].str.split(" ").apply(len)
+        alts["length"] = alts["sequence"].apply(len)
+        alts = self.max_sequence_version(alts, fasta_seqs)
+        
+        return alts
+        
 
 
     def add_sequences(self, data):
 
         if self.file_format == "dbNSFP":
+            print (len(set(data["Ensembl_proteinid"])))
+            FF = self.fasta
+            
+            aligning = data.merge(FF, on="Ensembl_proteinid", how="left")
+            
+            aligning["alignment_score"] = aligning.apply(fasta.alignment_score, axis=1)
 
-            seq_latest_versions = pd.DataFrame(self.fasta.groupby("Ensembl_proteinid")["version"].max()).reset_index()
-            self.fasta = seq_latest_versions.merge(self.fasta, on=["Ensembl_proteinid","version"], how="left")
+            aligning = self.max_sequence_version(fasta=self.fasta, data=aligning)
 
-            self.fasta.drop(["Ensembl_proteinid_v", "version"], inplace=True, axis=1)
+            alignment    = aligning[aligning["alignment_score"] == 1]
 
-            data = data.merge(self.fasta, on="Ensembl_proteinid", how="left")
-        
+            non_aligning = aligning[(aligning["alignment_score"]<1) & (~aligning["Ensembl_proteinid"].isin(alignment["Ensembl_proteinid"]))]
+
+            new_aligned = self.alt_sequences(non_aligning)
+
+            data = pd.concat([alignment,new_aligned])
+            
+            aligned = data[(data["alignment_score"] == 1)].drop("latest_version", axis=1)
+
+            aligned = self.cur_max_sequence_version(data=aligned)
+
+            data = aligned[aligned["version"]==aligned["latest_version"]]
+            #print (data)
         else:
 
             self.fasta["Ensembl_proteinid"] = self.fasta["Ensembl_proteinid_v"]
             self.fasta.drop(["Ensembl_proteinid_v", "version"], inplace=True, axis=1)
             data = data.merge(self.fasta, on="Ensembl_proteinid", how="left")
         
+        #exit()
         return data
 
 
@@ -337,7 +407,6 @@ class MutPredpy:
 
     def sequence_quality_check(self, data):
         
-        data = data[~data["Ensembl_proteinid"].isin(["ENSP00000501372.1", "ENSP00000500814.2", "ENSP00000229022.5"])]
 
         data["sequence"] = data["sequence"].apply(lambda x: fasta.clean_FASTA_sequence(x))
         data[["status","Sequence Errors", "Mutation Errors"]] = data.apply(lambda x: pd.Series(fasta.check_sequences(x)), axis=1)

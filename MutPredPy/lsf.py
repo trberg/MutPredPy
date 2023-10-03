@@ -177,7 +177,7 @@ def config_template():
 """)
 
 """
-/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev -i $intermediate_dir/faa/$project/$base.missense_$index.faa -p 1 -c 1 -b 0 -t 0.05 -f 2 -o $intermediate_dir/scores/$base.missense_output_$index.txt
+/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev -i $intermediate_dir/faa/$project/$base.missense_$index.faa -p 1 -c 1 -b 0 -t 0.05 -f 4 -o $intermediate_dir/scores/$base.missense_output_$index.txt
 -d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/
 """
 
@@ -197,7 +197,7 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
         if len(jobs[i]) > 0:
             template = config_template().substitute({
                 'mem': int((max(jobs[i]["Memory Minimum"]) + memory_cushion)/cores),
-                'time': "50:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
+                'time': "20:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
                 'job': f"{project}_variants",
                 'job_array': build_job_array(jobs[i]['File']),
                 'project': project,
