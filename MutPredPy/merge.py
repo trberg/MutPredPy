@@ -176,5 +176,13 @@ if __name__=="__main__":
     scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")
     print (scores)
 
-    scored = inputs.merge(scores, left_on=["Ensembl_proteinid","Substitution"], right_on=["ensembl_protein_id","Substitution"], how="inner")
-    print (scored)
+    scored = inputs.merge(scores, left_on=["Ensembl_proteinid","Substitution"], right_on=["ensembl_protein_id","Substitution"], how="left")
+    scored = scored[['#CHROM','POS','ID','REF','ALT','Ensembl_proteinid', 'Feature_ID','Substitution','MutPred2 score']]
+
+    scored["MutPred2 score"].fillna('.', inplace=True)
+    scored.rename(columns={"Feature_ID":"Ensembl_transcriptid"}, inplace=True)
+    scored["Location"] = scored["#CHROM"]+":"+scored["POS"].astype(str)
+    print (scored[scored.duplicated(subset=["Location"], keep=False)].sort_values(["#CHROM","POS"]))
+    #print (scored[scored["MutPred2 score"]=="."])
+
+    #scored.to_csv("/Users/bergqt01/Research/MutPredPy/inputs/nilah/gnomad.final_set.scored.txt", sep="\t", index=False)

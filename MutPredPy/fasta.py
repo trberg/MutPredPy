@@ -1,3 +1,5 @@
+import difflib
+
 import pandas as pd
 import numpy as np
 import os
@@ -25,7 +27,9 @@ amino_acid_mapping = {
     "Thr":"T",
     "Trp":"W",
     "Tyr":"Y",
-    "Val":"V"
+    "Val":"V",
+    "Ter":"X",
+    "%3D":"="
 }
 inv_amino_acid_mapping = {v: k for k, v in amino_acid_mapping.items()}
 
@@ -90,7 +94,7 @@ def clean_FASTA_sequence(sequence):
 
 
 def mutation_mapping(x):
-    
+    #print (x)
     loc = re.findall(r'\d+', x)[0]
 
     ref, alt = x.replace(str(loc),"|").split("|")
@@ -113,6 +117,25 @@ def mutation_mapping(x):
 def dbnsfp_mutation_position(mut):
     pos = re.findall(r'\d+', mut)[0]
     return pos
+
+
+def alignment_score(data):
+    mutations = data["mutation"].split(" ")
+    refs =      "".join([mut[0] for mut in mutations])
+    positions = [int(dbnsfp_mutation_position(m))-1 for m in mutations]
+    
+    alignment = []
+    for pos in range(len(positions)):
+        try:
+            if data["sequence"][positions[pos]]==refs[pos]:
+                alignment.append(1)
+            else:
+                alignment.append(0)
+        except IndexError:
+            alignment.append(0)
+    
+    return float(sum(alignment))/float(len(positions))
+
 
 
 def dbnsfp_aa_change(mut):
@@ -139,6 +162,15 @@ def collect_dbNSFP_mutations(x):
     
     else:
         return "."
+    
+
+def collect_dbNSFP_hgvsp(protein_id, mutation):
+    #print (protein_id, mutation)
+
+    if mutation != ".":
+        return f"{protein_id}:p.{mutation_mapping(mutation)}"
+    else:
+        return "."
 
 
 
@@ -146,7 +178,8 @@ def filter_non_missense(data, file_format, annotation):
     if file_format == "dbNSFP":
         
         print (f"Pre-filtered count: {len(data)}")
-        data = data[((data["aaref"].isin(amino_acid_mapping.values())) & (data["aaalt"].isin(amino_acid_mapping.values()))) | (data["mutation"]!=".")]
+        data = data[((data["aaref"].isin(amino_acid_mapping.values())) & (data["aaalt"].isin(amino_acid_mapping.values()))) | (data["aapos"] != '-1')]
+        data = data[(data["aaref"] != "X") & (data["aaalt"] != "X")]
         print (f"Post-filtered count: {len(data)}")
 
         return data
@@ -237,7 +270,7 @@ def read_mutpred_input_fasta(faa_file):
     return output
 
 
-def collect_fasta(pep_file, primary="Ensembl_proteinid_v"):
+def collect_fasta(pep_file, primary="Ensembl_proteinid_v", drop_dups=True):
 
     output = []
 
@@ -284,7 +317,8 @@ def collect_fasta(pep_file, primary="Ensembl_proteinid_v"):
 
     output = pd.DataFrame(output)
     
-    output = output.drop_duplicates(subset=[primary, "sequence"], keep="first")
+    if drop_dups:
+        output = output.drop_duplicates(subset=[primary, "sequence"], keep="first")
 
     output["version"] = output["Ensembl_proteinid_v"].str.split(".").str[1]
     output["Ensembl_proteinid"] = output["Ensembl_proteinid_v"].str.split(".").str[0]
