@@ -134,7 +134,6 @@ def alignment_score(data):
         except IndexError:
             alignment.append(0)
     
-    print (float(sum(alignment))/float(len(positions)))
     return float(sum(alignment))/float(len(positions))
 
 
