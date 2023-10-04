@@ -67,14 +67,14 @@ def usage_report(tech_requirements):
     mid_memory  = tech_requirements[tech_requirements['Middle Memory']]
     normal_job  = tech_requirements[tech_requirements['Normal Memory']]
 
-    print ("============= LOW MEMORY =============")
-    print (normal_job)
+    #print ("============= LOW MEMORY =============")
+    #print (normal_job)
 
-    print ("============= MID MEMORY =============")
-    print (mid_memory)
+    #print ("============= MID MEMORY =============")
+    #print (mid_memory)
     
-    print ("============= HIGH MEMORY =============")
-    print (high_memory)
+    #print ("============= HIGH MEMORY =============")
+    #print (high_memory)
 
 
     if len(high_memory) > 0:

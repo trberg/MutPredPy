@@ -231,7 +231,7 @@ class MutPredpy:
                 return data, False
             
             data = data[["#chr","pos(1-based)","ref","alt","aaref","aaalt","aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"]]
-            print (data)
+            #print (data)
             data = data.explode(["aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"])
 
             data["hgvsp"] = data.apply(lambda row: fasta.collect_dbNSFP_hgvsp(row["Ensembl_proteinid"], fasta.collect_dbNSFP_mutations(row)), axis=1)
