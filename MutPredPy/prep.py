@@ -315,12 +315,16 @@ class MutPredpy:
         alts = alts[["Ensembl_proteinid","Ensembl_geneid","Ensembl_transcriptid","sequence","version"]]
         
         alts = alts.merge(mutations, how="cross")
+        print  (f"Alts: {len(alts)}")
+
+        if len(alts) > 0:
+            
+            alts["alignment_score"] = alts.apply(fasta.alignment_score, axis=1)
+            alts = alts[alts["alignment_score"]==1]
+            alts["num_mutations"] = alts["mutation"].str.split(" ").apply(len)
+            alts["length"] = alts["sequence"].apply(len)
+            alts = self.max_sequence_version(alts, fasta_seqs)
         
-        alts["alignment_score"] = alts.apply(fasta.alignment_score, axis=1)
-        alts = alts[alts["alignment_score"]==1]
-        alts["num_mutations"] = alts["mutation"].str.split(" ").apply(len)
-        alts["length"] = alts["sequence"].apply(len)
-        alts = self.max_sequence_version(alts, fasta_seqs)
         
         return alts
         
