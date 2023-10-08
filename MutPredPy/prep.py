@@ -146,7 +146,7 @@ class MutPredpy:
         if not os.path.exists(f"{output_scores}"):
             if self.dry_run:
                 print (f"(Dry Run) {output_scores} created")
-            else;
+            else:
                 os.mkdir(f"{output_scores}")
 
         output = f"{output_scores}/{self.__project}"
