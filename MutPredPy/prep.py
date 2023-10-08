@@ -142,11 +142,37 @@ class MutPredpy:
 
 
     def set_mutpred_output(self):
-        output = f"{self.__intermediate_dir}/scores"
+        output_scores = f"{self.__intermediate_dir}/scores"
+        if not os.path.exists(f"{output_scores}"):
+            if self.dry_run:
+                print (f"(Dry Run) {output_scores} created")
+            else;
+                os.mkdir(f"{output_scores}")
+
+        output = f"{output_scores}/{self.__project}"
         if not os.path.exists(f"{output}"):
-            os.mkdir(f"{output}")
+            if self.dry_run:
+                print (f"(Dry Run) {output} created")
+            else:
+                os.mkdir(f"{output}")
         
         return output
+    
+
+    def set_log_output(self):
+        logs = f"./logs"
+        if not os.path.exists(f"{logs}"):
+            if self.dry_run:
+                print (f"(Dry Run) {logs} created")
+            else:
+                os.mkdir(f"{logs}")
+
+        log_output = f"{logs}/{self.__project}"
+        if not os.path.exists(f"{log_output}"):
+            if self.dry_run:
+                print (f"(Dry Run) {log_output} created")
+            else:
+                os.mkdir(f"{log_output}")
 
 
 
@@ -333,7 +359,7 @@ class MutPredpy:
     def add_sequences(self, data):
 
         if self.file_format == "dbNSFP":
-            print (len(set(data["Ensembl_proteinid"])))
+            #print (len(set(data["Ensembl_proteinid"])))
             FF = self.fasta
             
             aligning = data.merge(FF, on="Ensembl_proteinid", how="left")
@@ -373,7 +399,7 @@ class MutPredpy:
             data["mutation"] = data.apply(lambda x: fasta.collect_dbNSFP_mutations(x), axis=1)
 
         else:
-            print (data)
+            #print (data)
             data[["Ensembl_proteinid","mutation"]] = data["hgvsp"].str.split(":",expand=True)
             data["mutation"] = data["mutation"].str.split(".").str[1].apply(lambda x: fasta.mutation_mapping(x))
         
@@ -392,7 +418,8 @@ class MutPredpy:
 
 
     def summary(self, data):
-        print (data)
+        pass
+        #print (data)
     
 
 
@@ -611,6 +638,10 @@ class MutPredpy:
             self.set_intermediate_directory()
             
             self.set_faa_output()
+
+            self.set_mutpred_output()
+
+            self.set_log_output()
 
             tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
             user = 1

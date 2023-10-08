@@ -171,7 +171,7 @@ def config_template():
 
 ./run_mutpred2.sh \
 -i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$base.missense_$index.faa \
--o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$base.missense_output_$index.txt \
+-o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$project/$base.missense_output_$index.txt \
 -p 1 -c 1 -b 0 -t 1 -f 2 \
 
 """)
