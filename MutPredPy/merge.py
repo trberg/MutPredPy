@@ -30,13 +30,14 @@ def collect_scores():
     projects = [project for project in os.listdir("intermediates/scores/")]
     score_dir = []
     for project in projects:
-        score_dir += os.listdir(f"intermediates/scores/{project}")
+        for file in os.listdir(f"intermediates/scores/{project}"):
+            score_dir.append(f"{project}/{file}")
 
     
     #score_dir = os.listdir("intermediates/scores/")
     score_pattern = re.compile(".*\.missense_output_\d+.txt$")
 
-    scores = [s for s in score_dir if score_pattern.match(s)]
+    scores = [s for s in score_dir if score_pattern.match(s.split("/")[-1])]
 
     cur_file_num = 1
     score_df = []
