@@ -172,7 +172,7 @@ def config_template():
 module load MCR/R2017b;
 
 /sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev \
--i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$index/$base.missense_$index.faa \
+-i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$base.missense_$index.faa \
 -o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$project/$index/$base.missense_output_$index.txt \
 -d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/ \
 -p 1 -c 1 -b 0 -t 1 -f 2 \
