@@ -431,14 +431,22 @@ class MutPredpy:
 
 
     def filtered_scored(self, data):
-        scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
+        #scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
         
-        data = data.merge(scores, on="hgvsp", how="left")
+        #data = data.merge(scores, on="hgvsp", how="left")
 
-        data = data[data["MutPred2 score"].isna()]
+        #data = data[data["MutPred2 score"].isna()]
 
-        data = data.drop("MutPred2 score", axis=1)
-        
+        #data = data.drop("MutPred2 score", axis=1)
+
+        exclude = ['ENSP00000332973.4', 'ENSP00000355192.3', 'ENSP00000262186.5', 'ENSP00000305692.3', 'ENSP00000218516.4', 'ENSP00000352608.2', 'ENSP00000304408.4', 'ENSP00000039007.4', 'ENSP00000303992.5', 'ENSP00000347507.3', 'ENSP00000303208.5', 'ENSP00000261584.4', 'ENSP00000265849.7', 'ENSP00000333984.5', 'ENSP00000347942.3', 'ENSP00000300036.5', 'ENSP00000327145.8', 'ENSP00000355533.2', 'ENSP00000325527.5', 'ENSP00000287878.3', 'ENSP00000495254.2', 'ENSP00000369497.3', 'ENSP00000369129.3', 'ENSP00000234420.5', 'ENSP00000258439.3', 'ENSP00000257555.5', 'ENSP00000261448.5', 'ENSP00000295754.5', 'ENSP00000350283.3', 'ENSP00000298552.3', 'ENSP00000398266.2', 'ENSP00000280904.6', 'ENSP00000233242.1', 'ENSP00000290378.4', 'ENSP00000361107.2', 'ENSP00000155840.2', 'ENSP00000324856.6', 'ENSP00000415516.5', 'ENSP00000219476.3', 'ENSP00000233146.2', 'ENSP00000257430.4', 'ENSP00000373574.4', 'ENSP00000267163.4', 'ENSP00000261590.8', 'ENSP00000341838.5', 'ENSP00000454071.1', 'ENSP00000357283.4', 'ENSP00000342800.5', 'ENSP00000301761.3', 'ENSP00000341551.3', 'ENSP00000256474.3', 'ENSP00000442795.1', 'ENSP00000224784.6', 'ENSP00000407590.2', 'ENSP00000242839.5', 'ENSP00000231790.3', 'ENSP00000344666.5', 'ENSP00000394933.3', 'ENSP00000385107.4', 'ENSP00000364649.3', 'ENSP00000356953.3', 'ENSP00000362299.4', 'ENSP00000361021.3', 'ENSP00000364699.3', 'ENSP00000364133.4', 'ENSP00000269305.4', 'ENSP00000499593.1', 'ENSP00000228841.8', 'ENSP00000262340.5', 'ENSP00000351490.4', 'ENSP00000417404.1', 'ENSP00000292327.4']
+        data["protein_id"] = data["hgvsp"].str.split(":").str[0]
+        #print (data)
+        print (f"Pre-filter: {len(data)}")
+        data = data[~data["protein_id"].isin(exclude)]
+        print (f"Post-filter: {len(data)}")
+        data.drop("protein_id", inplace=True, axis=1)
+
         return data
 
 
@@ -545,7 +553,8 @@ class MutPredpy:
                     sequence = f"{split['sequence']}\n"
                     
                     if self.dry_run:
-                        self.set_mutpred_output(file_number)
+                        pass
+                        #self.set_mutpred_output(file_number)
                     else:
                         self.write_sequence_to_file(number, file_number, header, sequence)
                         self.set_mutpred_output(file_number)
@@ -567,7 +576,8 @@ class MutPredpy:
                 memory.append(row["Memory Estimate (MB)"])
                 ## write to file 
                 if self.dry_run:
-                    self.set_mutpred_output(file_number)
+                    pass
+                    #self.set_mutpred_output(file_number)
 
                 else:
                     self.write_sequence_to_file(number, file_number, header, sequence)
@@ -611,7 +621,7 @@ class MutPredpy:
 
             self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
 
-            #self.variant_data = self.filtered_scored(self.variant_data)
+            self.variant_data = self.filtered_scored(self.variant_data)
             
             self.variant_data = self.collect_mutations(self.variant_data)
             
