@@ -141,7 +141,7 @@ class MutPredpy:
 
 
 
-    def set_mutpred_output(self):
+    def set_mutpred_output(self, number):
         output_scores = f"{self.__intermediate_dir}/scores"
         if not os.path.exists(f"{output_scores}"):
             if self.dry_run:
@@ -155,8 +155,15 @@ class MutPredpy:
                 print (f"(Dry Run) {output} created")
             else:
                 os.mkdir(f"{output}")
+
+        output_num = f"{output_scores}/{self.__project}/{number}"
+        if not os.path.exists(f"{output_num}"):
+            if self.dry_run:
+                print (f"(Dry Run) {output_num} created")
+            else:
+                os.mkdir(f"{output_num}")
         
-        return output
+        return output_num
     
 
     def set_log_output(self):
@@ -538,9 +545,10 @@ class MutPredpy:
                     sequence = f"{split['sequence']}\n"
                     
                     if self.dry_run:
-                        pass
+                        self.set_mutpred_output(file_number)
                     else:
                         self.write_sequence_to_file(number, file_number, header, sequence)
+                        self.set_mutpred_output(file_number)
 
                     memory.append(split["Memory Estimate (MB)"])
                     number = split["Time Estimate (hrs)"]
@@ -559,10 +567,11 @@ class MutPredpy:
                 memory.append(row["Memory Estimate (MB)"])
                 ## write to file 
                 if self.dry_run:
-                    pass
+                    self.set_mutpred_output(file_number)
 
                 else:
                     self.write_sequence_to_file(number, file_number, header, sequence)
+                    self.set_mutpred_output(file_number)
                 
                 number += row[variable]
             
@@ -602,7 +611,7 @@ class MutPredpy:
 
             self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
 
-            self.variant_data = self.filtered_scored(self.variant_data)
+            #self.variant_data = self.filtered_scored(self.variant_data)
             
             self.variant_data = self.collect_mutations(self.variant_data)
             
@@ -639,11 +648,10 @@ class MutPredpy:
             
             self.set_faa_output()
 
-            self.set_mutpred_output()
-
             self.set_log_output()
 
             tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
+            
             user = 1
             if user == 1:
                 per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=1)
