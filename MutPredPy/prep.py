@@ -4,16 +4,16 @@ import numpy as np
 
 import os
 import re
+import hashlib
 
 
 from . import fasta
 from . import lsf
+from . import sql_connection
 
-#import lsf
-#import fasta
 
 class MutPredpy:
-    def __init__(self, input, project, time, dry_run, canonical):
+    def __init__(self, input, project, time, dry_run, canonical, database):
         
         self.__intermediate_dir = "intermediates"
         self.__project = project
@@ -21,10 +21,11 @@ class MutPredpy:
         self.__base = input.split("/")[-1].split(".")[0]
         self.__time = time
 
-        self.__fasta_file_number_start = 1
+        self.__fasta_file_number_start = self.set_fasta_file_number_start()
 
-        self.dry_run = dry_run
+        self.dry_run   = dry_run
         self.canonical = canonical
+        self.database  = database
 
         self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
         self.fasta = fasta.collect_fasta(self.__fasta_location)
@@ -66,6 +67,19 @@ class MutPredpy:
     def get_time(self):
         return self.__time
     
+    def get_database_status(self):
+        #print (self.database)
+        if self.database == "None":
+            return False
+        else:
+            return True
+        
+    def get_database_connection(self, config_name):
+        con = sql_connection.SQL_Connection(config_name=config_name, config_file=self.database)
+        engine = con.get_engine()
+        return engine
+    
+    
     def get_annotation(self):
         if self.file_format == "VCF-info":
             if "SnpEff" in self.header_data:
@@ -100,7 +114,18 @@ class MutPredpy:
 
         print (f"{file_format} file format")
         return file_format
+    
 
+    def set_fasta_file_number_start(self):
+
+        project_output = f"{self.__intermediate_dir}/{self.__project}"
+        
+        if not os.path.exists(f"{project_output}"):
+            return 1
+        elif os.path.exists(f"{project_output}") and len(os.listdir(f"{project_output}"))>0:
+            return max([int(f) for f in os.listdir(f"{project_output}")]) + 1
+        else:
+            return 1
 
 
     def set_intermediate_directory(self):
@@ -113,50 +138,37 @@ class MutPredpy:
 
         return self.__intermediate_dir
     
-    
 
-    def set_faa_output(self):
+    def set_project_folder(self):
 
-        faa_dir = f"{self.__intermediate_dir}/faa"
-        if not os.path.exists(f"{faa_dir}"):
-            if self.dry_run:
-                print (f"(Dry Run) {faa_dir} created")
-            else:
-                os.mkdir(f"{faa_dir}")
-
-
-        project_output = f"{self.__intermediate_dir}/faa/{self.__project}"
-        
+        project_output = f"{self.__intermediate_dir}/{self.__project}"
         
         if not os.path.exists(f"{project_output}"):
             if self.dry_run:
                 print (f"(Dry Run) {project_output} created")
             else:
                 os.mkdir(f"{project_output}")
-        elif os.path.exists(f"{project_output}") and len(os.listdir(f"{project_output}"))>0:
-            self.__fasta_file_number_start = max([int(f.split(".")[-2].split("_")[-1]) for f in os.listdir(f"{project_output}")]) + 1
-        #print (self.__fasta_file_number_start)
-        #exit()
+
         return project_output
+    
+
+    def set_job_folder(self, number):
+
+        job_folder = f"{self.__intermediate_dir}/{self.__project}/{number}"
+        
+        if not os.path.exists(f"{job_folder}"):
+            if self.dry_run:
+                print (f"(Dry Run) {job_folder} created")
+            else:
+                os.mkdir(f"{job_folder}")
+        
+        return job_folder
 
 
 
     def set_mutpred_output(self, number):
-        output_scores = f"{self.__intermediate_dir}/scores"
-        if not os.path.exists(f"{output_scores}"):
-            if self.dry_run:
-                print (f"(Dry Run) {output_scores} created")
-            else:
-                os.mkdir(f"{output_scores}")
 
-        output = f"{output_scores}/{self.__project}"
-        if not os.path.exists(f"{output}"):
-            if self.dry_run:
-                print (f"(Dry Run) {output} created")
-            else:
-                os.mkdir(f"{output}")
-
-        output_num = f"{output_scores}/{self.__project}/{number}"
+        output_num = f"{self.__intermediate_dir}/{self.__project}/{number}"
         if not os.path.exists(f"{output_num}"):
             if self.dry_run:
                 print (f"(Dry Run) {output_num} created")
@@ -431,21 +443,54 @@ class MutPredpy:
 
 
     def filtered_scored(self, data):
-        #scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
-        
-        #data = data.merge(scores, on="hgvsp", how="left")
 
-        #data = data[data["MutPred2 score"].isna()]
+        if self.get_database_status():
+            scores = pd.read_sql("SELECT seq_hash,mutation,'True' as scored FROM mutations", con=self.get_database_connection(config_name="Remote"))
+            scores["scored"] = scores["scored"].astype(bool)
 
-        #data = data.drop("MutPred2 score", axis=1)
+            print ("Filtering scored variants.")
+            print (f"Pre-filter: {len(data)}")
 
-        exclude = ['ENSP00000332973.4', 'ENSP00000355192.3', 'ENSP00000262186.5', 'ENSP00000305692.3', 'ENSP00000218516.4', 'ENSP00000352608.2', 'ENSP00000304408.4', 'ENSP00000039007.4', 'ENSP00000303992.5', 'ENSP00000347507.3', 'ENSP00000303208.5', 'ENSP00000261584.4', 'ENSP00000265849.7', 'ENSP00000333984.5', 'ENSP00000347942.3', 'ENSP00000300036.5', 'ENSP00000327145.8', 'ENSP00000355533.2', 'ENSP00000325527.5', 'ENSP00000287878.3', 'ENSP00000495254.2', 'ENSP00000369497.3', 'ENSP00000369129.3', 'ENSP00000234420.5', 'ENSP00000258439.3', 'ENSP00000257555.5', 'ENSP00000261448.5', 'ENSP00000295754.5', 'ENSP00000350283.3', 'ENSP00000298552.3', 'ENSP00000398266.2', 'ENSP00000280904.6', 'ENSP00000233242.1', 'ENSP00000290378.4', 'ENSP00000361107.2', 'ENSP00000155840.2', 'ENSP00000324856.6', 'ENSP00000415516.5', 'ENSP00000219476.3', 'ENSP00000233146.2', 'ENSP00000257430.4', 'ENSP00000373574.4', 'ENSP00000267163.4', 'ENSP00000261590.8', 'ENSP00000341838.5', 'ENSP00000454071.1', 'ENSP00000357283.4', 'ENSP00000342800.5', 'ENSP00000301761.3', 'ENSP00000341551.3', 'ENSP00000256474.3', 'ENSP00000442795.1', 'ENSP00000224784.6', 'ENSP00000407590.2', 'ENSP00000242839.5', 'ENSP00000231790.3', 'ENSP00000344666.5', 'ENSP00000394933.3', 'ENSP00000385107.4', 'ENSP00000364649.3', 'ENSP00000356953.3', 'ENSP00000362299.4', 'ENSP00000361021.3', 'ENSP00000364699.3', 'ENSP00000364133.4', 'ENSP00000269305.4', 'ENSP00000499593.1', 'ENSP00000228841.8', 'ENSP00000262340.5', 'ENSP00000351490.4', 'ENSP00000417404.1', 'ENSP00000292327.4']
-        data["protein_id"] = data["hgvsp"].str.split(":").str[0]
-        #print (data)
-        print (f"Pre-filter: {len(data)}")
-        data = data[~data["protein_id"].isin(exclude)]
-        print (f"Post-filter: {len(data)}")
-        data.drop("protein_id", inplace=True, axis=1)
+            cur_cols = data.columns
+
+            data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(x.encode(encoding='utf-8')).hexdigest())
+            data["mutation"] = data["mutation"].str.split(" ")
+            data = data.explode("mutation")
+            
+            data = data.merge(scores, on=["seq_hash","mutation"], how="left")
+            data["scored"].fillna(False, inplace=True)
+            
+            data = data[~data["scored"]]
+            data = data.drop_duplicates()
+            columns = [col for col in data.columns if col != "mutation"]
+            data = pd.DataFrame(data.groupby(columns)["mutation"].apply(lambda x: ' '.join(list(x)))).reset_index()
+            data = data[cur_cols]
+            print (f"Post-filter: {len(data)}")
+
+        else:
+            scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
+
+            cur_cols = data.columns
+
+            data["mutation"] = data["mutation"].str.split(" ")
+            
+            data = data.explode("mutation")
+            print ("FIX NEEDED")
+            exit()
+
+            data = data.merge(scores, on="hgvsp", how="left")
+
+            data = data[data["MutPred2 score"].isna()]
+
+            data = data.drop("MutPred2 score", axis=1)
+
+            exclude = ['ENSP00000332973.4', 'ENSP00000355192.3', 'ENSP00000262186.5', 'ENSP00000305692.3', 'ENSP00000218516.4', 'ENSP00000352608.2', 'ENSP00000304408.4', 'ENSP00000039007.4', 'ENSP00000303992.5', 'ENSP00000347507.3', 'ENSP00000303208.5', 'ENSP00000261584.4', 'ENSP00000265849.7', 'ENSP00000333984.5', 'ENSP00000347942.3', 'ENSP00000300036.5', 'ENSP00000327145.8', 'ENSP00000355533.2', 'ENSP00000325527.5', 'ENSP00000287878.3', 'ENSP00000495254.2', 'ENSP00000369497.3', 'ENSP00000369129.3', 'ENSP00000234420.5', 'ENSP00000258439.3', 'ENSP00000257555.5', 'ENSP00000261448.5', 'ENSP00000295754.5', 'ENSP00000350283.3', 'ENSP00000298552.3', 'ENSP00000398266.2', 'ENSP00000280904.6', 'ENSP00000233242.1', 'ENSP00000290378.4', 'ENSP00000361107.2', 'ENSP00000155840.2', 'ENSP00000324856.6', 'ENSP00000415516.5', 'ENSP00000219476.3', 'ENSP00000233146.2', 'ENSP00000257430.4', 'ENSP00000373574.4', 'ENSP00000267163.4', 'ENSP00000261590.8', 'ENSP00000341838.5', 'ENSP00000454071.1', 'ENSP00000357283.4', 'ENSP00000342800.5', 'ENSP00000301761.3', 'ENSP00000341551.3', 'ENSP00000256474.3', 'ENSP00000442795.1', 'ENSP00000224784.6', 'ENSP00000407590.2', 'ENSP00000242839.5', 'ENSP00000231790.3', 'ENSP00000344666.5', 'ENSP00000394933.3', 'ENSP00000385107.4', 'ENSP00000364649.3', 'ENSP00000356953.3', 'ENSP00000362299.4', 'ENSP00000361021.3', 'ENSP00000364699.3', 'ENSP00000364133.4', 'ENSP00000269305.4', 'ENSP00000499593.1', 'ENSP00000228841.8', 'ENSP00000262340.5', 'ENSP00000351490.4', 'ENSP00000417404.1', 'ENSP00000292327.4']
+            data["protein_id"] = data["hgvsp"].str.split(":").str[0]
+            #print (data)
+            print (f"Pre-filter: {len(data)}")
+            data = data[~data["protein_id"].isin(exclude)]
+            print (f"Post-filter: {len(data)}")
+            data.drop("protein_id", inplace=True, axis=1)
 
         return data
 
@@ -473,7 +518,9 @@ class MutPredpy:
 
     def write_sequence_to_file(self, number, file_number, header, sequence):
 
-        output_file = f"{self.__intermediate_dir}/faa/{self.__project}/{self.__base}.missense_{file_number}.faa"
+        output_folder = self.set_job_folder(job=file_number)
+
+        output_file = f"{output_folder}/{self.__base}.missense_{file_number}.faa"
         #print (f"Writing > {output_file}")
         if number == 0:
             #if os.path.exists(output_file):
@@ -620,14 +667,14 @@ class MutPredpy:
             self.variant_data = self.filter_canonical(self.variant_data)
 
             self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
-
-            self.variant_data = self.filtered_scored(self.variant_data)
             
             self.variant_data = self.collect_mutations(self.variant_data)
             
             self.variant_data = self.groupby_protein_id(self.variant_data)
 
             self.variant_data = self.add_sequences(self.variant_data)
+
+            self.variant_data = self.filtered_scored(self.variant_data)
             
             self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
@@ -656,7 +703,7 @@ class MutPredpy:
 
             self.set_intermediate_directory()
             
-            self.set_faa_output()
+            self.set_project_folder()
 
             self.set_log_output()
 

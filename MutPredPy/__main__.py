@@ -25,7 +25,8 @@ def command_mutpred_prep(args):
         project=args.project,
         time=args.time,
         dry_run=args.dry_run,
-        canonical=args.canonical
+        canonical=args.canonical,
+        database=args.database
     )
     
     mut.prepare_mutpred_input()
@@ -107,6 +108,10 @@ def build_parser():
     parser_mutpredPrepare.add_argument(
                 "--canonical", action="store_true", 
                 help='Only prepare canonical isoforms for mutpred scoring'
+            )
+    parser_mutpredPrepare.add_argument(
+                "--database", type=str, nargs='?', default="None",
+                help="Path to option config.yaml file for linking to mysql database."
             )
     parser_mutpredPrepare.set_defaults(func=command_mutpred_prep)
     
