@@ -25,7 +25,13 @@ class MutPredpy:
 
         self.dry_run   = dry_run
         self.canonical = canonical
-        self.database  = database
+
+        if "@" in database:
+            self.database = database.split("@")[0]
+            self.db_config_name = database.split("@")[1]
+        else:
+            self.database = database
+            self.db_config_name = "Local"
 
         self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
         self.fasta = fasta.collect_fasta(self.__fasta_location)
@@ -68,14 +74,14 @@ class MutPredpy:
         return self.__time
     
     def get_database_status(self):
-        #print (self.database)
         if self.database == "None":
             return False
         else:
             return True
         
-    def get_database_connection(self, config_name):
-        con = sql_connection.SQL_Connection(config_name=config_name, config_file=self.database)
+    def get_database_connection(self):
+        
+        con = sql_connection.SQL_Connection(config_name=self.db_config_name, config_file=self.database)
         engine = con.get_engine()
         return engine
     
@@ -445,7 +451,7 @@ class MutPredpy:
     def filtered_scored(self, data):
 
         if self.get_database_status():
-            scores = pd.read_sql("SELECT seq_hash,mutation,'True' as scored FROM mutations", con=self.get_database_connection(config_name="Remote"))
+            scores = pd.read_sql("SELECT seq_hash,mutation,'True' as scored FROM mutations", con=self.get_database_connection())
             scores["scored"] = scores["scored"].astype(bool)
 
             print ("Filtering scored variants.")
