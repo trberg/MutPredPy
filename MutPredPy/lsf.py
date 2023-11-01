@@ -163,7 +163,7 @@ def config_template():
 #BSUB -R span[hosts=1]
 #BSUB -R rusage[mem=$mem]
 #BSUB -W $time
-#BSUB -q premium
+#BSUB -q long
 #BSUB -J $job$job_array
 #BSUB -cwd /sc/arion/projects/pejaverlab/lab_software/MutPredPy/tools/mutpred2.0
 #BSUB -oo /sc/arion/projects/pejaverlab/lab_software/MutPredPy/logs/$project/out_$base.%J.faa_file_%I
@@ -172,8 +172,8 @@ def config_template():
 module load MCR/R2017b;
 
 /sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev \
--i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/faa/$project/$base.missense_$index.faa \
--o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/scores/$project/$index/$base.missense_output_$index.txt \
+-i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/$project/$index/$base.missense_$index.faa \
+-o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/$project/$index/$base.missense_output_$index.txt \
 -d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/ \
 -p 1 -c 1 -b 0 -t 1 -f 2 \
 
@@ -205,7 +205,7 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
         if len(jobs[i]) > 0:
             template = config_template().substitute({
                 'mem': int((max(jobs[i]["Memory Minimum"]) + memory_cushion)/cores),
-                'time': "144:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
+                'time': "336:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
                 'job': f"{project}_variants",
                 'job_array': build_job_array(jobs[i]['File']),
                 'project': project,
