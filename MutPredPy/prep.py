@@ -523,7 +523,7 @@ class MutPredpy:
 
     def write_sequence_to_file(self, number, file_number, header, sequence):
 
-        output_folder = self.set_job_folder(job=file_number)
+        output_folder = self.set_job_folder(number=file_number)
 
         output_file = f"{output_folder}/{self.__base}.missense_{file_number}.faa"
         #print (f"Writing > {output_file}")
