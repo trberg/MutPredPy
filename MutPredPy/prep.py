@@ -442,10 +442,9 @@ class MutPredpy:
     
 
 
-    def summary(self, data):
-        pass
-        #print (data)
-    
+    def count_mutations(self, data):
+        num_mutations = sum(data["mutation"].str.split(" ").apply(len))
+        return num_mutations
 
 
     def filtered_scored(self, data):
@@ -675,6 +674,8 @@ class MutPredpy:
             self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
             
             self.variant_data = self.collect_mutations(self.variant_data)
+
+            print (f"Pre filtered variants: {self.count_mutations(self.variant_data)}")
             
             self.variant_data = self.groupby_protein_id(self.variant_data)
 
@@ -706,6 +707,8 @@ class MutPredpy:
 
             #self.summary(self.variant_data)
             #print (self.variant_data)
+
+            print (f"Post filtered variants: {self.count_mutations(self.variant_data)}")
 
             self.set_intermediate_directory()
             
