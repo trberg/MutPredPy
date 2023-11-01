@@ -111,7 +111,7 @@ def build_parser():
             )
     parser_mutpredPrepare.add_argument(
                 "--database", type=str, nargs='?', default="None",
-                help="Path to option config.yaml file for linking to mysql database."
+                help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
             )
     parser_mutpredPrepare.set_defaults(func=command_mutpred_prep)
     
