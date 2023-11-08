@@ -590,7 +590,8 @@ class MutPredpy:
         threshold = self.get_time()
         variable  = "Time Estimate (hrs)"
         
-        
+        print (data)
+
         for index,row in data.iterrows():
 
             if number + row[variable] > threshold + 2:
@@ -625,6 +626,7 @@ class MutPredpy:
             else:
                 header = f">{row['Ensembl_proteinid']}|{row['gene_symbol']} {row['mutation']}\n"
                 sequence = f"{row['sequence']}\n"
+                #print (row)
                 memory.append(row["Memory Estimate (MB)"])
                 ## write to file 
                 if self.dry_run:
@@ -636,6 +638,7 @@ class MutPredpy:
                     self.set_mutpred_output(file_number)
                 
                 number += row[variable]
+                print (number, threshold)
             
                 if number >= threshold:
 
@@ -650,10 +653,24 @@ class MutPredpy:
                     memory = []
                 else:
                     pass
+        else:
+            job_information.append({
+                "File": file_number,
+                "Time Estimate": number,
+                "Memory Minimum": max(memory)
+            })
 
+            if self.dry_run:
+                    pass
+                    #self.set_mutpred_output(file_number)
+
+            else:
+                self.write_sequence_to_file(number, file_number, header, sequence)
+                self.set_mutpred_output(file_number)
+                
         job_information = pd.DataFrame(job_information)
 
-        job_information["Normal Memory"]    = job_information["Memory Minimum"].apply(lambda x: x <= 5000)
+        job_information["Normal Memory"] = job_information["Memory Minimum"].apply(lambda x: x <= 5000)
         job_information["Middle Memory"] = job_information["Memory Minimum"].apply(lambda x: x > 5000 and x <= 10000)
         job_information["High Memory"]   = job_information["Memory Minimum"].apply(lambda x: x > 10000)
 
