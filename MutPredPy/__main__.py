@@ -26,7 +26,8 @@ def command_mutpred_prep(args):
         time=args.time,
         dry_run=args.dry_run,
         canonical=args.canonical,
-        database=args.database
+        database=args.database,
+        assembly=args.assembly,
     )
     
     mut.prepare_mutpred_input()
@@ -113,6 +114,10 @@ def build_parser():
                 "--database", type=str, nargs='?', default="None",
                 help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
             )
+    parser_mutpredPrepare.add_argument(
+                "--assembly", type=str, nargs='?', default="hg38",
+                help="Identify which genome assembly the variants are built from (hg19, hg38)"
+    )
     parser_mutpredPrepare.set_defaults(func=command_mutpred_prep)
     
 
