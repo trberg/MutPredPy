@@ -13,7 +13,7 @@ from . import sql_connection
 
 
 class MutPredpy:
-    def __init__(self, input, project, time, dry_run, canonical, database):
+    def __init__(self, input, project, time, dry_run, canonical, database, assembly):
         
         self.__intermediate_dir = "intermediates"
         self.__project = project
@@ -33,7 +33,14 @@ class MutPredpy:
             self.database = database
             self.db_config_name = "Local"
 
-        self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
+        if assembly == "hg38":
+            self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
+        elif assembly == "hg19":
+            self.__fasta_location = "resources/Homo_sapiens.GRCh37.combined.pep.all.fa"
+        else:
+            print ("assembly not recognized, using hg38 assembly")
+            self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
+
         self.fasta = fasta.collect_fasta(self.__fasta_location)
 
         self.header_data, self.original_data = self.read_input_data()
@@ -457,7 +464,7 @@ class MutPredpy:
             print (f"Pre-filter: {len(data)}")
 
             cur_cols = data.columns
-
+            
             data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(x.encode(encoding='utf-8')).hexdigest())
             data["mutation"] = data["mutation"].str.split(" ")
             data = data.explode("mutation")
@@ -699,6 +706,7 @@ class MutPredpy:
             self.variant_data = self.add_sequences(self.variant_data)
 
             self.variant_data = self.filtered_scored(self.variant_data)
+            print (self.variant_data)
             
             self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
