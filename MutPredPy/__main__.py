@@ -53,9 +53,16 @@ def command_debug(args):
     mutpred_stat.mutupred_debugging()
 
 
+
 def command_merge(args):
 
-    merge.merge(dry_run=args.dry_run)
+    mutpred_merge = merge.Merge(
+        database=args.database,
+        assembly=args.assembly,
+        dry_run=args.dry_run
+    )
+    mutpred_merge.merge(input=args.input, output=args.output)
+
 
 
 def command_remainder(args):
@@ -144,7 +151,7 @@ def build_parser():
 
 
 
-    # ============== MutPredPy Status ==============
+    # ============== MutPredPy Debug ==============
     parser_mutpredDebug = subparsers.add_parser(
             "debug", 
             help="Check the status of a given job with the given parameters"
@@ -171,7 +178,22 @@ def build_parser():
             "merge", 
             help="Combine the output scored mutations from MutPred into a single file."
         )
-    
+    parser_mutpredMerge.add_argument(
+                "--input", type=str, nargs='?',
+                help='Path to the original input file'
+            )
+    parser_mutpredMerge.add_argument(
+                "--output", type=str, nargs='?',
+                help='Path to the output file'
+            )
+    parser_mutpredMerge.add_argument(
+                "--database", type=str, nargs='?', default="None",
+                help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
+            )
+    parser_mutpredMerge.add_argument(
+                "--assembly", type=str, nargs='?', default="hg38",
+                help="Identify which genome assembly the variants are built from (hg19, hg38)"
+    ) 
     parser_mutpredMerge.add_argument(
                 "--dry_run", action="store_true", 
                 help='Run through the merging process without saving the output'

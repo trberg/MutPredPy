@@ -333,3 +333,27 @@ def collect_fasta(pep_file, primary="Ensembl_proteinid_v", drop_dups=True):
     output["Time per Mutation (hrs)"] = output["sequence"].apply(lambda x: time_function(len(x)))
 
     return output
+
+
+
+def collect_mutations(data, file_format):
+
+    if file_format == "dbNSFP":
+        data["mutation"] = data.apply(lambda x: collect_dbNSFP_mutations(x), axis=1)
+
+    else:
+        #print (data)
+        data[["Ensembl_proteinid","mutation"]] = data["hgvsp"].str.split(":",expand=True)
+        data["mutation"] = data["mutation"].str.split(".").str[1].apply(lambda x: mutation_mapping(x))
+    
+    return data
+
+
+
+def sequence_quality_check(data):
+    
+
+    data["sequence"] = data["sequence"].apply(lambda x: clean_FASTA_sequence(x))
+    data[["status","Sequence Errors", "Mutation Errors"]] = data.apply(lambda x: pd.Series(check_sequences(x)), axis=1)
+    
+    return data

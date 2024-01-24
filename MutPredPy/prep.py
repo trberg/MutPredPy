@@ -10,6 +10,7 @@ import hashlib
 from . import fasta
 from . import lsf
 from . import sql_connection
+from . import utils as u
 
 
 class MutPredpy:
@@ -88,8 +89,12 @@ class MutPredpy:
         
     def get_database_connection(self):
         
-        con = sql_connection.SQL_Connection(config_name=self.db_config_name, config_file=self.database)
-        engine = con.get_engine()
+        engine = u.get_sql_engine(config_name=self.db_config_name, config_file=self.database)
+        #print (con)
+        #print (con.get)
+        #engine = con.get_engine()
+        print ("database")
+
         return engine
     
     
@@ -222,23 +227,11 @@ class MutPredpy:
         return header_info, input_data
 
 
-
-    def collect_value(self, x, val):
-        cur_dict = {k.split("=")[0]:k.split("=")[1] for k in x.split(";")}
-        
-        if val in cur_dict.keys():
-            protein = cur_dict[val]#.split(":")[0]
-        else:
-            protein = "."
-        return protein
-
-
-
     def hgvsp(self, data):
 
         input_cols = set(data.columns)
         possibilites = set(["hgvsp", "HGVSp", "HGVSP"])
-        inter = input_cols.intersection(possibilites)
+        inter = list(input_cols.intersection(possibilites))
 
         if "hgvsp" in input_cols:
             return data, True
@@ -250,7 +243,7 @@ class MutPredpy:
         elif "Extra" in input_cols and self.file_format=="VEP":
             
             try:
-                data["hgvsp"] = data["Extra"].apply(lambda x: self.collect_value(x, val="HGVSp"))
+                data["hgvsp"] = data["Extra"].apply(lambda x: u.collect_value(x, val="HGVSp"))
                 return data, True
             except KeyError:
                 return data, False
@@ -307,7 +300,7 @@ class MutPredpy:
                     columns = line.split("'")[1].split(" | ")
 
             if len(columns) > 0:
-                data["INFO"] = data["INFO"].apply(lambda x: self.collect_value(x, val="ANN")).str.split(",")
+                data["INFO"] = data["INFO"].apply(lambda x: u.collect_value(x, val="ANN")).str.split(",")
                 data = data.explode("INFO")
                 data[columns] = data["INFO"].str.split("|", expand=True)
                 data = data[["#CHROM","POS","ID","REF","ALT","Annotation","Gene_Name","Gene_ID","Feature_Type","Feature_ID",'Transcript_BioType','HGVS.p']]
@@ -328,7 +321,7 @@ class MutPredpy:
     def filter_canonical(self, data):
 
         if self.canonical and self.file_format == "VEP":
-            data["CANONICAL"] = data["Extra"].apply(lambda x: self.collect_value(x, val="CANONICAL"))
+            data["CANONICAL"] = data["Extra"].apply(lambda x: u.collect_value(x, val="CANONICAL"))
             data = data[data["CANONICAL"]=="YES"]
 
             return data
@@ -422,20 +415,6 @@ class MutPredpy:
         
         #exit()
         return data
-
-
-
-    def collect_mutations(self, data):
-
-        if self.file_format == "dbNSFP":
-            data["mutation"] = data.apply(lambda x: fasta.collect_dbNSFP_mutations(x), axis=1)
-
-        else:
-            #print (data)
-            data[["Ensembl_proteinid","mutation"]] = data["hgvsp"].str.split(":",expand=True)
-            data["mutation"] = data["mutation"].str.split(".").str[1].apply(lambda x: fasta.mutation_mapping(x))
-        
-        return data
     
 
 
@@ -457,7 +436,10 @@ class MutPredpy:
     def filtered_scored(self, data):
 
         if self.get_database_status():
+            
+            #print ("DATABASE")
             scores = pd.read_sql("SELECT seq_hash,mutation,'True' as scored FROM mutations", con=self.get_database_connection())
+            #print (scores)
             scores["scored"] = scores["scored"].astype(bool)
 
             print ("Filtering scored variants.")
@@ -465,7 +447,12 @@ class MutPredpy:
 
             cur_cols = data.columns
             
-            data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(x.encode(encoding='utf-8')).hexdigest())
+            #print (data)
+            #data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(x.encode(encoding='utf-8')).hexdigest())
+            data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(str(x).encode(encoding='utf-8')).hexdigest())
+            #print (data)
+            #print ("HERE")
+            #exit()
             data["mutation"] = data["mutation"].str.split(" ")
             data = data.explode("mutation")
             
@@ -504,16 +491,6 @@ class MutPredpy:
             print (f"Post-filter: {len(data)}")
             data.drop("protein_id", inplace=True, axis=1)
 
-        return data
-
-
-
-    def sequence_quality_check(self, data):
-        
-
-        data["sequence"] = data["sequence"].apply(lambda x: fasta.clean_FASTA_sequence(x))
-        data[["status","Sequence Errors", "Mutation Errors"]] = data.apply(lambda x: pd.Series(fasta.check_sequences(x)), axis=1)
-        
         return data
     
 
@@ -597,7 +574,7 @@ class MutPredpy:
         threshold = self.get_time()
         variable  = "Time Estimate (hrs)"
         
-        print (data)
+        #print (data)
 
         for index,row in data.iterrows():
 
@@ -645,7 +622,7 @@ class MutPredpy:
                     self.set_mutpred_output(file_number)
                 
                 number += row[variable]
-                print (number, threshold)
+                #print (number, threshold)
             
                 if number >= threshold:
 
@@ -695,22 +672,22 @@ class MutPredpy:
 
             self.variant_data = self.filter_canonical(self.variant_data)
 
+            self.variant_data = fasta.collect_mutations(self.variant_data, self.file_format)
+
             self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
-            
-            self.variant_data = self.collect_mutations(self.variant_data)
 
             print (f"Pre filtered variants: {self.count_mutations(self.variant_data)}")
             
             self.variant_data = self.groupby_protein_id(self.variant_data)
 
             self.variant_data = self.add_sequences(self.variant_data)
+            #print (self.variant_data)
 
             self.variant_data = self.filtered_scored(self.variant_data)
-            print (self.variant_data)
             
             self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
 
-            self.variant_data = self.sequence_quality_check(self.variant_data)
+            self.variant_data = fasta.sequence_quality_check(self.variant_data)
 
             ## Check if any sequences are invalid
             not_passed = self.variant_data[self.variant_data["status"]==False]
