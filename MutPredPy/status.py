@@ -141,34 +141,40 @@ class Status:
         return log_files
     
 
-    def retrieve_faas(self):
-        faa_dir = f"{self.get_intermediate_dir()}/faa/{self.get_project()}"
-        f_reg = re.compile(f"{self.get_base()}.missense_\d+.faa")
+    def retrieve_faas(self, jobid):
+        faa_file = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}/{self.get_base()}.missense_{jobid}.faa"
+        #f_reg = re.compile(f"{self.get_base()}.missense_\d+.faa")
 
-        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+        #faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
 
-        return pd.concat([fasta.read_mutpred_input_fasta(f"{faa_dir}/{file}") for file in faa_files])
+        return fasta.read_mutpred_input_fasta(f"{faa_file}")
     
 
-    def retrieve_outputs(self):
-        o_reg = re.compile(f"{self.get_base()}.missense_output_\d+.txt$")
-        out_dir = f"{self.get_intermediate_dir()}/scores"
-        
-        out_files = [o for o in os.listdir(out_dir) if o_reg.match(o)]
+    def retrieve_outputs(self, jobid):
 
-        return pd.concat([self.read_mutpred_output(f"{out_dir}/{s}") for s in out_files])
+        out_file = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}/{self.get_base()}.missense_output_{jobid}.txt"
+
+        return self.read_mutpred_output(out_file)
 
     
     def mutpred_status(self):
 
-        faa = self.retrieve_faas()
-        
-        scores = self.retrieve_outputs()
+        all_statuses = []
 
-        status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
-        status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
+        for job in os.listdir(f"{self.get_intermediate_dir()}/{self.get_project()}"):
 
-        return status
+            faa = self.retrieve_faas(job)
+            
+            scores = self.retrieve_outputs(job)
+
+            status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
+            status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
+
+            all_statuses.append(status)
+
+        all_statuses = pd.concat(all_statuses)
+
+        return all_statuses
 
     
     def mutpred_logs(self, status):
@@ -255,14 +261,28 @@ class Status:
         #exit()
 
 
+    def show_job_summary(self, job):
+        #print (job)
+        status_bar_size = 25
+        percent_complete = int((job['percent']/100.0)*status_bar_size)
+        percent_incomplete = status_bar_size - percent_complete
+        
+        status_bar = "#"*percent_complete + " "*percent_incomplete
+        
+        job_status = \
+f"""Job {job['index']} [{status_bar}] {int(job['percent'])}%"""
+        print (job_status)
+
 
     def mutpred_summary(self):
 
         base = self.get_base()
 
         status = self.mutpred_status()
+        print (status)
 
-        summary = self.mutpred_logs(status)
+        summary = self.mutpred_logs(status).sort_values("index")
+        print (summary)
 
         summary["hasError"].fillna(False, inplace=True)
         summary["Error"].fillna("", inplace=True)
@@ -271,11 +291,17 @@ class Status:
 
         for index, row in summary.iterrows():
             if row['percent'] < 100 and not row['hasError']:
-                print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
+                self.show_job_summary(row)
+                #print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
+
             elif row['percent'] < 100 and row['hasError']:
-                print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\t{row['Error']}")
+                self.show_job_summary(row)
+                #print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\t{row['Error']}")
+
             elif self.__show_all:
-                print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\tComplete!")
+                self.show_job_summary(row)
+                #print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\tComplete!")
+
             else:
                 pass
 
