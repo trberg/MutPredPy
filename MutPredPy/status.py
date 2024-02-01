@@ -72,8 +72,6 @@ class Status:
         if os.path.isfile(file) and os.path.getsize(file) > 0:
             
             scores = pd.read_csv(file)
-            #print (scores)
-            #exit()
 
             scores = scores.drop_duplicates()
             
@@ -84,8 +82,7 @@ class Status:
             
         else:
             scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
-            #print ("BLANK")
-            #exit()
+
         
         return scores
     
@@ -162,13 +159,14 @@ class Status:
         o_reg = re.compile(f".*.missense_output_{jobid}.txt$")
 
         out_files = [o for o in os.listdir(job_dir) if o_reg.match(o)]
+        #if jobid == 71
 
         if len(out_files) == 1:
             out_file = out_files[0]
+        elif len(out_files) == 0:
+            out_file = "no_out_file.txt"
         elif len(out_files) > 1:
             raise Exception(f"More than 1 MutPred2 output file for job {jobid}")
-        elif len(out_files) == 0:
-            raise Exception(f"No MutPred2 output file for job {jobid}")
         else:
             raise Exception(f"Error in reading output file for job {jobid}")
 
