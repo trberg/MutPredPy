@@ -8,47 +8,37 @@ from . import fasta
 
 
 class Status:
-    def __init__(self, input, project, all):
+    def __init__(self, project, all):
         
         self.__intermediate_dir = "intermediates"
         self.__project = project
-        self.__input = self.input_path(input)
-        self.__base = input.split("/")[-1].split(".")[0]
         self.__show_all = all
 
     
     def get_intermediate_dir(self):
         return self.__intermediate_dir
     
+    
     def get_project(self):
         return self.__project
     
-    def get_base(self):
-        return self.__base
 
+    def get_mutpred_output_file(self, jobid):
 
-    def input_path(self, input):
+        job_dir = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}"
         
-        if os.path.exists(input):
-            path = input
-        
-        else:
-            print (f"File input {input} not found...trying inputs/{self.__project}/{input}")
-            path = f"inputs/{self.__project}/{input}"
-        
-        
-        if os.path.exists(path):
-            return path
-        
-        else:
-            print (f"Input file {path} not found.")
-            exit()
+        o_reg = re.compile(f".*.missense_output_{jobid}.txt")
 
+        out_files = [o for o in os.listdir(job_dir) if o_reg.match(o)]
 
-    def get_mutpred_output_file(self, index):
+        if len(out_files) == 1:
+            out_file = out_files[0]
+        elif len(out_files) > 1:
+            Exception(f"More than 1 output file for job {jobid}")
+        elif len(out_files) == 0:
+            Exception(f"No output file for job {jobid}")
 
-        file = f"{self.get_base()}.missense_output_{index}.txt"
-        return file
+        return out_file
     
 
     def get_mutpred_output_file_path(self, index):
@@ -58,25 +48,30 @@ class Status:
         return f"{directory}/scores/{file}"
 
 
-
     def get_mutpred_input_file(self, index):
-        file = f"{self.get_base()}.missense_{index}.faa"
+
+        file = self.retrieve_faas(jobid=index)
+        
         return file
     
+
     def get_mutpred_input_file_path(self, project, index):
 
         directory = self.get_intermediate_dir()
         file = self.get_mutpred_input_file(index)
+
         return f"{directory}/faa/{project}/{file}"
     
 
     def read_mutpred_output(self, file):
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
-
+        
         if os.path.isfile(file) and os.path.getsize(file) > 0:
             
             scores = pd.read_csv(file)
+            #print (scores)
+            #exit()
 
             scores = scores.drop_duplicates()
             
@@ -87,13 +82,11 @@ class Status:
             
         else:
             scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
+            #print ("BLANK")
+            #exit()
         
         return scores
-
-        
-        
     
-
     
     def read_err_log(self, log):
         
@@ -106,7 +99,6 @@ class Status:
         
         return error
 
-    
     
     
     def has_err_log(self, log, index, job):
@@ -124,7 +116,7 @@ class Status:
 
 
     def retrieve_logs(self):
-        l_reg = re.compile(f"err_{self.get_base()}.\d+.faa_file_\d+$")
+        l_reg = re.compile(f"err_.*.\d+.faa_file_\d+$")
 
         log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"logs/{self.get_project()}/") if l_reg.match(l)]})
         log_files["type"] = log_files["logs"].str.split("_").str[0]
@@ -142,30 +134,54 @@ class Status:
     
 
     def retrieve_faas(self, jobid):
-        faa_file = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}/{self.get_base()}.missense_{jobid}.faa"
-        #f_reg = re.compile(f"{self.get_base()}.missense_\d+.faa")
 
-        #faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+        faa_dir = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}"
+        
+        f_reg = re.compile(f".*.missense_{jobid}.faa")
 
-        return fasta.read_mutpred_input_fasta(f"{faa_file}")
+        faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
+
+        if len(faa_files) == 1:
+            faa_file = faa_files[0]
+        elif len(faa_files) > 1:
+            Exception(f"More than 1 input fasta file in job {jobid}")
+        elif len(faa_files) == 0:
+            Exception(f"No input fasta file found for job {jobid}")
+
+        return fasta.read_mutpred_input_fasta(f"{faa_dir}/{faa_file}")
     
 
     def retrieve_outputs(self, jobid):
 
-        out_file = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}/{self.get_base()}.missense_output_{jobid}.txt"
+        job_dir = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}"
+        
+        o_reg = re.compile(f".*.missense_output_{jobid}.txt$")
 
-        return self.read_mutpred_output(out_file)
+        out_files = [o for o in os.listdir(job_dir) if o_reg.match(o)]
+
+        if len(out_files) == 1:
+            out_file = out_files[0]
+        elif len(out_files) > 1:
+            Exception(f"More than 1 MutPred2 output file for job {jobid}")
+        elif len(out_files) == 0:
+            Exception(f"No MutPred2 output file for job {jobid}")
+
+        return self.read_mutpred_output(f"{job_dir}/{out_file}")
 
     
     def mutpred_status(self):
 
         all_statuses = []
-
+        
         for job in os.listdir(f"{self.get_intermediate_dir()}/{self.get_project()}"):
 
             faa = self.retrieve_faas(job)
-            
+            #print (faa)
+
             scores = self.retrieve_outputs(job)
+            #print (scores)
+            
+            #exit()
 
             status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
             status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
@@ -202,12 +218,7 @@ class Status:
 
         
         for index, row in logs.iterrows():
-            #print ("=================")
-            #print (row)
-            #print (row["index"])
-            #print (row["Error"])
-            #print (row["hasError"])
-            #print ("=================")
+            
             if row["hasError"] and "Subscript indices must either be real positive integers or logicals." in row["Error"]:
                 output = self.get_mutpred_output_file_path(row['index'])
                 #print (output)
@@ -247,13 +258,6 @@ class Status:
 
                         position_adjustment += len(annotation) + len(annotation_end)
                     
-                    #print (position)
-                    #print (cur_sequence[position-5:position+15])
-
-                    #print (ref, loc, alt)
-                    #print (problem['sequence'][position-5:position+6])
-                    #exit()
-                #print ()
                 print (cur_sequence)
                 
             else:
@@ -269,41 +273,37 @@ class Status:
         
         status_bar = "#"*percent_complete + " "*percent_incomplete
         
-        job_status = \
-f"""Job {job['index']} [{status_bar}] {int(job['percent'])}%"""
+        job_status = f"""Job {job['index']} [{status_bar}] {int(job['percent'])}%"""
         print (job_status)
 
 
     def mutpred_summary(self):
 
-        base = self.get_base()
-
         status = self.mutpred_status()
-        print (status)
+        #print (status)
 
         summary = self.mutpred_logs(status).sort_values("index")
-        print (summary)
+        #print (summary)
 
         summary["hasError"].fillna(False, inplace=True)
         summary["Error"].fillna("", inplace=True)
 
         summary = summary.sort_values("index")
 
+        print (f"Job Status for Project {self.get_project()}")
         for index, row in summary.iterrows():
             if row['percent'] < 100 and not row['hasError']:
                 self.show_job_summary(row)
-                #print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%")
 
             elif row['percent'] < 100 and row['hasError']:
                 self.show_job_summary(row)
-                #print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\t{row['Error']}")
 
             elif self.__show_all:
                 self.show_job_summary(row)
-                #print (f"{base}.missense_{int(row['index'])}\t{row['percent']}%\tComplete!")
 
             else:
                 pass
+        
 
         print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
@@ -314,21 +314,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Check the status of a currently running or a previously ran MutPred2 job.')
     
-
-    parser.add_argument('--input', type=str, nargs='?',
-                        help='The name of the input filename that is located in the data folder.')
-    parser.add_argument('--project', type=str, nargs='?',
-                        help='The name of the project for organization purposes')
-
+    parser.add_argument('--project', type=str, nargs='?', help='The name of the project for organization purposes')
     
     args = parser.parse_args()
 
-    input   = args.input
     project = args.project
     
-    status = Status(
-        input=input,
-        project=project
-    )
+    status = Status(project=project)
     
     status.mutpred_status()
