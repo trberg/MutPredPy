@@ -34,8 +34,8 @@ def command_mutpred_prep(args):
 
 
 def command_status(args):
+    
     summary = status.Status(
-        input=args.input,
         project=args.project,
         all=args.all
     )
@@ -134,11 +134,6 @@ def build_parser():
             "status", 
             help="Check the status of a given job with the given parameters"
         )
-
-    parser_mutpredStatus.add_argument(
-                '--input', type=str, nargs='?',
-                help='The name of the input filename that is located in the data folder'
-            )
     parser_mutpredStatus.add_argument(
                 '--project', type=str, nargs='?',
                 help='The name of the project for organization purposes'
