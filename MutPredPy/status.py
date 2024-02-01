@@ -165,6 +165,8 @@ class Status:
             Exception(f"More than 1 MutPred2 output file for job {jobid}")
         elif len(out_files) == 0:
             Exception(f"No MutPred2 output file for job {jobid}")
+        else:
+            Exception(f"Error in reading output file for job {jobid}")
 
         return self.read_mutpred_output(f"{job_dir}/{out_file}")
 
