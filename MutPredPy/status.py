@@ -34,9 +34,11 @@ class Status:
         if len(out_files) == 1:
             out_file = out_files[0]
         elif len(out_files) > 1:
-            Exception(f"More than 1 output file for job {jobid}")
+            raise Exception(f"More than 1 output file for job {jobid}")
         elif len(out_files) == 0:
-            Exception(f"No output file for job {jobid}")
+            raise Exception(f"No output file for job {jobid}")
+        else:
+            raise Exception(f"Error with reading output file for job {jobid}")
 
         return out_file
     
@@ -144,9 +146,11 @@ class Status:
         if len(faa_files) == 1:
             faa_file = faa_files[0]
         elif len(faa_files) > 1:
-            Exception(f"More than 1 input fasta file in job {jobid}")
+            raise Exception(f"More than 1 input fasta file in job {jobid}")
         elif len(faa_files) == 0:
-            Exception(f"No input fasta file found for job {jobid}")
+            raise Exception(f"No input fasta file found for job {jobid}")
+        else:
+            raise Exception(f"Error finding input fasta file for job {jobid}")
 
         return fasta.read_mutpred_input_fasta(f"{faa_dir}/{faa_file}")
     
@@ -162,11 +166,11 @@ class Status:
         if len(out_files) == 1:
             out_file = out_files[0]
         elif len(out_files) > 1:
-            Exception(f"More than 1 MutPred2 output file for job {jobid}")
+            raise Exception(f"More than 1 MutPred2 output file for job {jobid}")
         elif len(out_files) == 0:
-            Exception(f"No MutPred2 output file for job {jobid}")
+            raise Exception(f"No MutPred2 output file for job {jobid}")
         else:
-            Exception(f"Error in reading output file for job {jobid}")
+            raise Exception(f"Error in reading output file for job {jobid}")
 
         return self.read_mutpred_output(f"{job_dir}/{out_file}")
 
