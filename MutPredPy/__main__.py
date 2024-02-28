@@ -36,7 +36,7 @@ def command_mutpred_prep(args):
 def command_status(args):
     
     summary = status.Status(
-        project=args.project,
+        job_dir=args.job_dir,
         all=args.all
     )
 
@@ -135,8 +135,8 @@ def build_parser():
             help="Check the status of a given job with the given parameters"
         )
     parser_mutpredStatus.add_argument(
-                '--project', type=str, nargs='?',
-                help='The name of the project for organization purposes'
+                '--job_dir', type=str, nargs='?',
+                help='Path to the directory containing the MutPred2 jobs.'
             )
     parser_mutpredStatus.add_argument(
                 "--all", action="store_true", 

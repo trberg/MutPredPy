@@ -8,24 +8,24 @@ from . import fasta
 
 
 class Status:
-    def __init__(self, project, all):
+    def __init__(self, job_dir, all, logs=None):
         
-        self.__intermediate_dir = "intermediates"
-        self.__project = project
+        self.__job_dir = job_dir
         self.__show_all = all
-
-    
-    def get_intermediate_dir(self):
-        return self.__intermediate_dir
+        self.__log_dir = logs
     
     
-    def get_project(self):
-        return self.__project
+    def get_job_dir(self):
+        return self.__job_dir.rstrip("/")
+     
+    
+    def get_log_dir(self):
+        return self.__log_dir.rstrip("/")
     
 
     def get_mutpred_output_file(self, jobid):
 
-        job_dir = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}"
+        job_dir = f"{self.get_job_dir()}/{jobid}"
         
         o_reg = re.compile(f".*.missense_output_{jobid}.txt")
 
@@ -45,9 +45,9 @@ class Status:
 
     def get_mutpred_output_file_path(self, index):
 
-        directory = self.get_intermediate_dir()
+        directory = self.get_job_dir()
         file = self.get_mutpred_output_file(index)
-        return f"{directory}/scores/{file}"
+        return f"{directory}/{file}"
 
 
     def get_mutpred_input_file(self, index):
@@ -59,10 +59,10 @@ class Status:
 
     def get_mutpred_input_file_path(self, project, index):
 
-        directory = self.get_intermediate_dir()
+        directory = self.get_job_dir()
         file = self.get_mutpred_input_file(index)
 
-        return f"{directory}/faa/{project}/{file}"
+        return f"{directory}/{file}"
     
 
     def read_mutpred_output(self, file):
@@ -91,7 +91,7 @@ class Status:
         
         error = ""
         
-        with open(f"logs/{self.get_project()}/{log}") as l:
+        with open(f"{self.get_log_dir()}/{log}") as l:
             for line in l:
                 if len(line) > 1:
                     error += line
@@ -100,9 +100,13 @@ class Status:
 
     
     
-    def has_err_log(self, log, index, job):
-        cur_log = f"logs/{self.get_project()}/{log}"
-        #print (cur_log, os.path.exists(cur_log), os.path.getsize(cur_log))
+    def has_err_log(self, log):
+
+        if self.get_log_dir() == None:
+            error = ""
+            return pd.Series([False, error])
+        
+        cur_log = f"{self.get_log_dir()}/{log}"
         
         if os.path.exists(cur_log) and os.path.getsize(cur_log) > 0:
             error = self.read_err_log(log).replace("\n",", ")
@@ -134,7 +138,7 @@ class Status:
 
     def retrieve_faas(self, jobid):
 
-        faa_dir = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}"
+        faa_dir = f"{self.get_job_dir()}/{jobid}"
         
         f_reg = re.compile(f".*.missense_{jobid}.faa")
 
@@ -154,7 +158,7 @@ class Status:
 
     def retrieve_outputs(self, jobid):
 
-        job_dir = f"{self.get_intermediate_dir()}/{self.get_project()}/{jobid}"
+        job_dir = f"{self.get_job_dir()}/{jobid}"
         
         o_reg = re.compile(f".*.missense_output_{jobid}.txt$")
 
@@ -276,8 +280,9 @@ class Status:
         percent_incomplete = status_bar_size - percent_complete
         
         status_bar = "#"*percent_complete + " "*percent_incomplete
+        #print (job)
         
-        job_status = f"""Job {job['index']} [{status_bar}] {int(job['percent'])}%"""
+        job_status = f"""Job {job['index']} [{status_bar}] {int(job['percent'])}%\t{job['Error']}"""
         print (job_status)
 
 
@@ -318,7 +323,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Check the status of a currently running or a previously ran MutPred2 job.')
     
-    parser.add_argument('--project', type=str, nargs='?', help='The name of the project for organization purposes')
+    parser.add_argument('--job_dir', type=str, nargs='?', help='Path to the job directory for MutPred2')
     
     args = parser.parse_args()
 
