@@ -220,7 +220,9 @@ class Status:
 
         logs = self.retrieve_logs()
 
-        summary = pd.DataFrame(status.groupby("index")["num_mutations_faa","num_mutations_scored"].agg(sum)).reset_index()
+        summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].agg(sum).reset_index()
+        print (summary)
+        exit()
         summary["index"] = summary["index"].astype(int)
 
         summary["percent"] = round((summary["num_mutations_scored"]/summary["num_mutations_faa"])*100, 2)
