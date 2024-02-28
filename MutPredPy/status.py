@@ -8,7 +8,7 @@ from . import fasta
 
 
 class Status:
-    def __init__(self, job_dir, all, logs=None):
+    def __init__(self, job_dir, all, logs=""):
         
         self.__job_dir = job_dir
         self.__show_all = all
@@ -20,6 +20,7 @@ class Status:
      
     
     def get_log_dir(self):
+
         return self.__log_dir.rstrip("/")
     
 
@@ -102,7 +103,7 @@ class Status:
     
     def has_err_log(self, log):
 
-        if self.get_log_dir() == None:
+        if self.get_log_dir() == "":
             error = ""
             return pd.Series([False, error])
         
@@ -119,20 +120,33 @@ class Status:
 
 
     def retrieve_logs(self):
+        
         l_reg = re.compile(f"err_.*.\d+.faa_file_\d+$")
-
-        log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"logs/{self.get_project()}/") if l_reg.match(l)]})
-        log_files["type"] = log_files["logs"].str.split("_").str[0]
-        log_files["job"] = log_files["logs"].str.split(".").str[1]
-        log_files["index"] = log_files["logs"].str.split("_").str[-1].astype(int)
         
-        latest_err_logs = pd.DataFrame(log_files.groupby(["index","type"])["job"].max()).reset_index()
-        
-        log_files = log_files.merge(latest_err_logs, on=["index","type","job"], how="inner")
+        if not os.path.isdir(self.get_log_dir()):
+            log_files = pd.DataFrame({"logs":[]})
+            log_files["type"] = ""
+            log_files["job"] = ""
+            log_files["index"] = ""
+            log_files["hasError"] = ""
+            log_files["Error"] = ""
+            log_files = log_files[["index", "hasError", "Error"]]
 
-        log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], row["job"]), axis=1)
-        log_files = log_files[["index", "hasError", "Error"]]
-        log_files["Error"].fillna("No Errors", inplace=True)
+        else:
+            log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"{self.get_log_dir()}/") if l_reg.match(l)]})
+        
+            log_files["type"] = log_files["logs"].str.split("_").str[0]
+            log_files["job"] = log_files["logs"].str.split(".").str[1]
+            log_files["index"] = log_files["logs"].str.split("_").str[-1].astype(int)
+        
+            latest_err_logs = pd.DataFrame(log_files.groupby(["index","type"])["job"].max()).reset_index()
+            
+            log_files = log_files.merge(latest_err_logs, on=["index","type","job"], how="inner")
+            #print (log_files)
+            
+            log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], row["job"]), axis=1)
+            log_files = log_files[["index", "hasError", "Error"]]
+            log_files["Error"].fillna("No Errors", inplace=True)
         return log_files
     
 
@@ -181,7 +195,7 @@ class Status:
 
         all_statuses = []
         
-        for job in os.listdir(f"{self.get_intermediate_dir()}/{self.get_project()}"):
+        for job in os.listdir(f"{self.get_job_dir()}"):
 
             faa = self.retrieve_faas(job)
             #print (faa)
@@ -234,7 +248,7 @@ class Status:
                 mutpred_scores = self.read_mutpred_output(output)
                 #print (mutpred_scores)
                 
-                input_faa = fasta.read_mutpred_input_fasta(self.get_mutpred_input_file_path(self.get_project(), row['index']))
+                input_faa = fasta.read_mutpred_input_fasta(self.get_mutpred_input_file_path(self.get_job_dir(), row['index']))
                 input_faa["mutation"] = input_faa["mutations"].str.replace(","," ")
                 #print (input_faa)
 
@@ -287,19 +301,21 @@ class Status:
 
 
     def mutpred_summary(self):
-
+        #print ("start")
         status = self.mutpred_status()
         #print (status)
 
+        #print ("before summary")
         summary = self.mutpred_logs(status).sort_values("index")
         #print (summary)
 
+        #print ("after summary")
         summary["hasError"].fillna(False, inplace=True)
         summary["Error"].fillna("", inplace=True)
 
         summary = summary.sort_values("index")
 
-        print (f"Job Status for Project {self.get_project()}")
+        print (f"Job Status for {self.get_job_dir()}")
         for index, row in summary.iterrows():
             if row['percent'] < 100 and not row['hasError']:
                 self.show_job_summary(row)
