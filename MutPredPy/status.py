@@ -28,7 +28,8 @@ class Status:
 
         job_dir = f"{self.get_job_dir()}/{jobid}"
         
-        o_reg = re.compile(f".*.missense_output_{jobid}.txt")
+        #o_reg = re.compile(f".*.missense_output_{jobid}.txt")
+        o_reg = re.compile(f"output.txt")
 
         out_files = [o for o in os.listdir(job_dir) if o_reg.match(o)]
 
@@ -154,7 +155,7 @@ class Status:
 
         faa_dir = f"{self.get_job_dir()}/{jobid}"
         
-        f_reg = re.compile(f".*.missense_{jobid}.faa")
+        f_reg = re.compile(f"*.faa")
 
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
 
