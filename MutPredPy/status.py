@@ -155,7 +155,7 @@ class Status:
 
         faa_dir = f"{self.get_job_dir()}/{jobid}"
         
-        f_reg = re.compile(f"*.faa")
+        f_reg = re.compile(f".*.faa")
 
         faa_files = [f for f in os.listdir(faa_dir) if f_reg.match(f)]
 
