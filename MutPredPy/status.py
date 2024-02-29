@@ -204,18 +204,20 @@ class Status:
         
         for job in os.listdir(f"{self.get_job_dir()}"):
 
-            faa = self.retrieve_faas(job)
-            #print (faa)
+            if os.path.isdir(f"{self.get_job_dir()}/{job}"):
 
-            scores = self.retrieve_outputs(job)
-            #print (scores)
-            
-            #exit()
+                faa = self.retrieve_faas(job)
+                #print (faa)
 
-            status = faa.merge(scores, on=["ID", "index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
-            status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
+                scores = self.retrieve_outputs(job)
+                #print (scores)
+                
+                #exit()
 
-            all_statuses.append(status)
+                status = faa.merge(scores, on=["ID", "index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
+                status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
+
+                all_statuses.append(status)
 
         all_statuses = pd.concat(all_statuses)
 
