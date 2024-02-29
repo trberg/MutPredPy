@@ -80,7 +80,7 @@ class Status:
             scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(list)).reset_index()
             
             scores["num_mutations"] = scores["Substitution"].apply(len).astype(int)
-            scores["index"] = index
+            #scores["index"] = index
             
         else:
             scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
@@ -175,7 +175,8 @@ class Status:
 
         job_dir = f"{self.get_job_dir()}/{jobid}"
         
-        o_reg = re.compile(f".*.missense_output_{jobid}.txt$")
+        #o_reg = re.compile(f".*.missense_output_{jobid}.txt$")
+        o_reg = re.compile(f"output.txt$")
 
         out_files = [o for o in os.listdir(job_dir) if o_reg.match(o)]
         #if jobid == 71
@@ -206,7 +207,7 @@ class Status:
             
             #exit()
 
-            status = faa.merge(scores, on=["ID","index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
+            status = faa.merge(scores, on="ID", how="outer", suffixes=("_faa","_scored")).fillna(0)
             status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
 
             all_statuses.append(status)
