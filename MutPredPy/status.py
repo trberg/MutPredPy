@@ -322,6 +322,7 @@ class Status:
         summary["Error"].fillna("", inplace=True)
 
         summary = summary.sort_values("index")
+        summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
 
         print (f"Job Status for {self.get_job_dir()}")
         for index, row in summary.iterrows():
