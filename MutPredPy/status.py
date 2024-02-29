@@ -67,7 +67,7 @@ class Status:
         return f"{directory}/{file}"
     
 
-    def read_mutpred_output(self, file):
+    def read_mutpred_output(self, file, jobid):
 
         index = file.split("/")[-1].split(".")[-2].split("_")[-1]
         
@@ -80,7 +80,8 @@ class Status:
             scores = pd.DataFrame(scores.groupby("ID")["Substitution"].agg(list)).reset_index()
             
             scores["num_mutations"] = scores["Substitution"].apply(len).astype(int)
-            #scores["index"] = index
+            
+            scores["index"] = jobid
             
         else:
             scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
@@ -168,7 +169,11 @@ class Status:
         else:
             raise Exception(f"Error finding input fasta file for job {jobid}")
 
-        return fasta.read_mutpred_input_fasta(f"{faa_dir}/{faa_file}")
+        job_faa = fasta.read_mutpred_input_fasta(f"{faa_dir}/{faa_file}")
+
+        job_faa["index"] = jobid
+
+        return job_faa
     
 
     def retrieve_outputs(self, jobid):
@@ -190,7 +195,7 @@ class Status:
         else:
             raise Exception(f"Error in reading output file for job {jobid}")
 
-        return self.read_mutpred_output(f"{job_dir}/{out_file}")
+        return self.read_mutpred_output(f"{job_dir}/{out_file}", jobid)
 
     
     def mutpred_status(self):
@@ -207,7 +212,7 @@ class Status:
             
             #exit()
 
-            status = faa.merge(scores, on="ID", how="outer", suffixes=("_faa","_scored")).fillna(0)
+            status = faa.merge(scores, on=["ID", "index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
             status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
 
             all_statuses.append(status)
@@ -223,7 +228,7 @@ class Status:
 
         summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].agg(sum).reset_index()
         
-        summary["index"] = summary["index"].astype(int)
+        #summary["index"] = summary["index"].astype(int)
 
         summary["percent"] = round((summary["num_mutations_scored"]/summary["num_mutations_faa"])*100, 2)
         summary["remaining_mutations"] = summary["num_mutations_faa"] - summary["num_mutations_scored"]
@@ -233,7 +238,7 @@ class Status:
         return summary
 
     
-    def mutupred_debugging(self):
+    def mutpred_debugging(self):
 
         status = self.mutpred_status()
 
@@ -248,7 +253,7 @@ class Status:
                 output = self.get_mutpred_output_file_path(row['index'])
                 #print (output)
 
-                mutpred_scores = self.read_mutpred_output(output)
+                mutpred_scores = self.read_mutpred_output(output, row['index'])
                 #print (mutpred_scores)
                 
                 input_faa = fasta.read_mutpred_input_fasta(self.get_mutpred_input_file_path(self.get_job_dir(), row['index']))
