@@ -228,7 +228,14 @@ class Status:
 
         logs = self.retrieve_logs()
 
-        summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].agg(sum).reset_index()
+        if True:
+            status["ID"] = status["ID"].str.split("_").str[0]
+
+            summary = status.groupby(["index","ID"])[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
+
+        else:
+            summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
+
         
         #summary["index"] = summary["index"].astype(int)
 
@@ -313,35 +320,61 @@ class Status:
     def mutpred_summary(self):
         #print ("start")
         status = self.mutpred_status()
-        print (status)
+        #print (status)
 
         #print ("before summary")
         summary = self.mutpred_logs(status).sort_values("index")
-        print (summary)
+        #print (summary)
 
         #print ("after summary")
         summary["hasError"].fillna(False, inplace=True)
         summary["Error"].fillna("", inplace=True)
 
         summary = summary.sort_values("index")
-        summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
 
-        print (f"Job Status for {self.get_job_dir()}")
-        for index, row in summary.iterrows():
-            if row['percent'] < 100 and not row['hasError']:
-                self.show_job_summary(row)
+        #print (summary)
 
-            elif row['percent'] < 100 and row['hasError']:
-                self.show_job_summary(row)
+        gene_summary = summary.groupby("ID")[["num_mutations_scored","remaining_mutations","num_mutations_faa"]].sum().reset_index()
+        gene_summary["percent"] = round((gene_summary["num_mutations_scored"]/gene_summary["num_mutations_faa"])*100, 2)
+        #print (gene_summary)
 
-            elif self.__show_all:
-                self.show_job_summary(row)
+        job_summary = summary.groupby("index")[["num_mutations_scored","remaining_mutations","num_mutations_faa"]].sum().reset_index()
+        job_summary["percent"] = round((job_summary["num_mutations_scored"]/job_summary["num_mutations_faa"])*100, 2)
+        #print (job_summary)
+        print(f"""
+    ===== Mutation Summary =====
+    Scored Mutations:    {sum(summary['num_mutations_scored'])}
+    Remaining Mutations: {sum(summary['remaining_mutations'])}
 
-            else:
-                pass
+    ===== Job Summary =====
+    Completed Jobs:           {len(job_summary[job_summary['percent'] == 100])}
+    Partially Completed Jobs: {len(job_summary[(job_summary['percent'] < 100) & job_summary['percent'] > 0])}
+    Non-starter Jobs:         {len(job_summary[job_summary['percent'] == 0])}
+
+    ===== Protein Summary =====
+    Fully Scored Genes:     {len(gene_summary[gene_summary['percent'] == 100])}
+    Partially Scored Genes: {len(gene_summary[(gene_summary['percent'] < 100) & gene_summary['percent'] > 0])}
+    Unscored Genes:         {len(gene_summary[gene_summary['percent'] == 0])}
+        """)
         
-        print (f"> Scored Mutations {sum(summary['num_mutations_scored'])}")
-        print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
+        summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
+        if False:
+            print (f"Job Status for {self.get_job_dir()}")
+            for index, row in summary.iterrows():
+                if row['percent'] < 100 and not row['hasError']:
+                    self.show_job_summary(row)
+
+                elif row['percent'] < 100 and row['hasError']:
+                    self.show_job_summary(row)
+
+                elif self.__show_all:
+                    self.show_job_summary(row)
+
+                else:
+                    pass
+            
+            print (f"> Scored Mutations {sum(summary['num_mutations_scored'])}")
+            print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
 
 
