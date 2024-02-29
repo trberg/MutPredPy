@@ -221,8 +221,7 @@ class Status:
         logs = self.retrieve_logs()
 
         summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].agg(sum).reset_index()
-        print (summary)
-        exit()
+        
         summary["index"] = summary["index"].astype(int)
 
         summary["percent"] = round((summary["num_mutations_scored"]/summary["num_mutations_faa"])*100, 2)
@@ -306,11 +305,11 @@ class Status:
     def mutpred_summary(self):
         #print ("start")
         status = self.mutpred_status()
-        #print (status)
+        print (status)
 
         #print ("before summary")
         summary = self.mutpred_logs(status).sort_values("index")
-        #print (summary)
+        print (summary)
 
         #print ("after summary")
         summary["hasError"].fillna(False, inplace=True)
