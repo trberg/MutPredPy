@@ -337,7 +337,7 @@ class Status:
             else:
                 pass
         
-
+        print (f"> Scored Mutations {sum(summary['num_mutations_scored'])}")
         print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
 
