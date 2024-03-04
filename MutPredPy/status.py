@@ -316,10 +316,11 @@ class Status:
 
     def unfinished_jobs(self, jobs):
         
-        leftover_jobs = jobs["index"].drop_duplicates()#.split("_")#.str[-1]#.astype(int).drop_duplicates()
+        leftover_jobs = jobs["index"].drop_duplicates().astype(str).str.split("_").str[-1].astype(int)
         
         job_arrays = lsf.build_job_array(leftover_jobs)
         print (job_arrays)
+        
         return job_arrays
     
 
@@ -355,9 +356,13 @@ class Status:
 
             summary = summary.sort_values("index")
 
-            summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
+            summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False, dtype={
+                "num_mutations_faa":int,
+                "num_mutations_scored":int,
+                "percent":float
+            })
 
-        print (summary)
+        #print (summary)
 
         gene_summary = summary.groupby("ID")[["num_mutations_scored","remaining_mutations","num_mutations_faa"]].sum().reset_index()
         gene_summary["percent"] = round((gene_summary["num_mutations_scored"]/gene_summary["num_mutations_faa"])*100, 2)
