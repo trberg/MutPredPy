@@ -280,6 +280,11 @@ def collect_fasta(pep_file, primary="Ensembl_proteinid_v", drop_dups=True):
             "sequence": ""
         }
     
+    if not os.path.exists(pep_file):
+        
+        raise Exception(f"Reference FASTA file, {pep_file}, not found")
+    
+
     with open(pep_file, "r") as fasta:
         
         for line in fasta:

@@ -5,14 +5,20 @@ import re
 import os
 
 from . import fasta
+from . import lsf
 
 
 class Status:
-    def __init__(self, job_dir, all, logs=""):
+    def __init__(self, job_dir, all, summary="", logs=""):
         
         self.__job_dir = job_dir
         self.__show_all = all
         self.__log_dir = logs
+        
+        if summary == "":
+            self.__summary = False
+        else:
+            self.__summary = summary
     
     
     def get_job_dir(self):
@@ -22,6 +28,10 @@ class Status:
     def get_log_dir(self):
 
         return self.__log_dir.rstrip("/")
+    
+
+    def get_summary(self):
+        return os.path.abspath(self.__summary)
     
 
     def get_mutpred_output_file(self, jobid):
@@ -304,6 +314,15 @@ class Status:
         #exit()
 
 
+    def unfinished_jobs(self, jobs):
+        
+        leftover_jobs = jobs["index"].drop_duplicates()#.split("_")#.str[-1]#.astype(int).drop_duplicates()
+        
+        job_arrays = lsf.build_job_array(leftover_jobs)
+        print (job_arrays)
+        return job_arrays
+    
+
     def show_job_summary(self, job):
         #print (job)
         status_bar_size = 25
@@ -318,21 +337,27 @@ class Status:
 
 
     def mutpred_summary(self):
-        #print ("start")
-        status = self.mutpred_status()
-        #print (status)
 
-        #print ("before summary")
-        summary = self.mutpred_logs(status).sort_values("index")
-        #print (summary)
+        if self.get_summary():
+            summary = pd.read_csv(self.get_summary(), sep="\t")
+        else:
+            #print ("start")
+            status = self.mutpred_status()
+            #print (status)
 
-        #print ("after summary")
-        summary["hasError"].fillna(False, inplace=True)
-        summary["Error"].fillna("", inplace=True)
+            #print ("before summary")
+            summary = self.mutpred_logs(status).sort_values("index")
+            #print (summary)
 
-        summary = summary.sort_values("index")
+            #print ("after summary")
+            summary["hasError"].fillna(False, inplace=True)
+            summary["Error"].fillna("", inplace=True)
 
-        #print (summary)
+            summary = summary.sort_values("index")
+
+            summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
+
+        print (summary)
 
         gene_summary = summary.groupby("ID")[["num_mutations_scored","remaining_mutations","num_mutations_faa"]].sum().reset_index()
         gene_summary["percent"] = round((gene_summary["num_mutations_scored"]/gene_summary["num_mutations_faa"])*100, 2)
@@ -357,24 +382,10 @@ class Status:
     Unscored Genes:         {len(gene_summary[gene_summary['percent'] == 0])}
         """)
         
-        summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
-        if False:
-            print (f"Job Status for {self.get_job_dir()}")
-            for index, row in summary.iterrows():
-                if row['percent'] < 100 and not row['hasError']:
-                    self.show_job_summary(row)
+        
 
-                elif row['percent'] < 100 and row['hasError']:
-                    self.show_job_summary(row)
+        self.unfinished_jobs(summary[summary["percent"] < 100])
 
-                elif self.__show_all:
-                    self.show_job_summary(row)
-
-                else:
-                    pass
-            
-            print (f"> Scored Mutations {sum(summary['num_mutations_scored'])}")
-            print (f"> Remaining Mutations {sum(summary['remaining_mutations'])}")
 
 
 

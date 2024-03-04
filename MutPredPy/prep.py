@@ -14,17 +14,17 @@ from . import utils as u
 
 
 class MutPredpy:
-    def __init__(self, input, project, time, dry_run, canonical, database, assembly):
+    def __init__(self, input, working_dir, time, dry_run, canonical, database, fasta_location):
         
-        self.__intermediate_dir = "intermediates"
-        self.__project = project
-        self.__input = self.input_path(input)
+        self.__working_dir = working_dir
+        self.__input = input
         self.__base = input.split("/")[-1].split(".")[0]
         self.__time = time
+        
+        self.dry_run   = dry_run
 
         self.__fasta_file_number_start = self.set_fasta_file_number_start()
-
-        self.dry_run   = dry_run
+        
         self.canonical = canonical
 
         if "@" in database:
@@ -34,29 +34,30 @@ class MutPredpy:
             self.database = database
             self.db_config_name = "Local"
 
-        if assembly == "hg38":
-            self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
-        elif assembly == "hg19":
-            self.__fasta_location = "resources/Homo_sapiens.GRCh37.combined.pep.all.fa"
-        else:
-            print ("assembly not recognized, using hg38 assembly")
-            self.__fasta_location = "resources/Homo_sapiens.GRCh38.combined.pep.all.fa"
+        
+        self.__fasta_location = fasta_location
 
         self.fasta = fasta.collect_fasta(self.__fasta_location)
-
-        self.header_data, self.original_data = self.read_input_data()
-        self.file_format = self.input_format()
-        self.annotation = self.get_annotation()
-
-
-    def input_path(self, input):
         
-        if os.path.exists(input):
-            path = input
+        self.__header_data, self.__input_data = self.read_input_data(self.get_input_path())
+        
+        self.file_format = self.input_format()
+        
+        self.annotation = self.get_annotation()
+        
+
+
+    def get_input_path(self):
+        
+        if os.path.exists(self.__input):
+            path = self.__input
+
+        elif os.path.exists(os.path.abspath(self.__input)):
+            path = os.path.abspath(self.__input)
         
         else:
-            print (f"File input {input} not found...trying inputs/{self.__project}/{input}")
-            path = f"inputs/{self.__project}/{input}"
+            print (f"File input {self.__input} not found...trying {self.get_working_dir()}/{self.__input}")
+            path = f"{self.get_working_dir()}/{self.__input}"
         
         if os.path.exists(path):
             return path
@@ -65,16 +66,29 @@ class MutPredpy:
             exit()
 
 
+    def get_input(self):
+        return self.__input_data
+    
+    def get_input_headers(self):
+        return self.__header_data
+    
+    
+    def get_working_dir(self):
+        
+        if not os.path.exists(self.__working_dir):
+            
+            if self.dry_run:
+                print (f"(Dry Run) Create {self.__working_dir}")
+            else:
+                creating_directory = ""
+                for folder in self.__working_dir.split("/"):
+                    creating_directory += f"{folder}/"
+                    if not os.path.exists(creating_directory):
+                        os.mkdir(creating_directory)
+        
+        return os.path.abspath(self.__working_dir).rstrip("/")
+    
 
-    def get_input_data(self):
-        return self.original_data
-    
-    def get_intermediate_dir(self):
-        return self.__intermediate_dir
-    
-    def get_project(self):
-        return self.__project
-    
     def get_base(self):
         return self.__base
     
@@ -90,9 +104,7 @@ class MutPredpy:
     def get_database_connection(self):
         
         engine = u.get_sql_engine(config_name=self.db_config_name, config_file=self.database)
-        #print (con)
-        #print (con.get)
-        #engine = con.get_engine()
+
         print ("database")
 
         return engine
@@ -118,7 +130,7 @@ class MutPredpy:
 
 
     def input_format(self):
-        cols = set(self.original_data.columns)
+        cols = set(self.get_input().columns)
         if len(set(["#chr","pos(1-based)","ref","alt","aaref","aaalt","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"]).intersection(cols)) == 9:
             file_format = "dbNSFP"
         elif len(set(["Location","Allele","Consequence","Protein_position","Amino_acids","Extra"]).intersection(cols)) == 6:
@@ -132,47 +144,46 @@ class MutPredpy:
 
         print (f"{file_format} file format")
         return file_format
+
+
+    def read_input_data(self, input_path):
+        
+        header_rows = []
+        header_info = ""
+        for i, line in enumerate(open(input_path)):
+            if line.startswith('##'):
+                header_rows.append(i)
+                header_info += line
+
+        input_data = pd.read_csv(input_path, sep="\t", skiprows = header_rows)
+
+        return header_info, input_data
     
 
     def set_fasta_file_number_start(self):
 
-        project_output = f"{self.__intermediate_dir}/{self.__project}"
-        
-        if not os.path.exists(f"{project_output}"):
+        working_dir = f"{self.get_working_dir()}"
+
+        if not os.path.exists(f"{working_dir}"):
             return 1
-        elif os.path.exists(f"{project_output}") and len(os.listdir(f"{project_output}"))>0:
-            return max([int(f) for f in os.listdir(f"{project_output}")]) + 1
+        elif os.path.exists(f"{working_dir}") and len(os.listdir(f"{working_dir}"))>0:
+            return max([int(f) for f in os.listdir(f"{working_dir}")]) + 1
         else:
             return 1
-
-
-    def set_intermediate_directory(self):
-        
-        if not os.path.exists(f"{self.__intermediate_dir}"):
-            if self.dry_run:
-                print (f"(Dry Run) {self.__intermediate_dir} created")
-            else:
-                os.mkdir(f"{self.__intermediate_dir}")
-
-        return self.__intermediate_dir
     
 
-    def set_project_folder(self):
-
-        project_output = f"{self.__intermediate_dir}/{self.__project}"
+    def get_job_folder(self, number):
         
-        if not os.path.exists(f"{project_output}"):
+        jobs_directory = f"{self.get_working_dir()}/jobs/"
+        
+        if not os.path.exists(f"{jobs_directory}"):
             if self.dry_run:
-                print (f"(Dry Run) {project_output} created")
+                print (f"(Dry Run) {jobs_directory} created")
             else:
-                os.mkdir(f"{project_output}")
+                os.mkdir(f"{jobs_directory}")
 
-        return project_output
-    
 
-    def set_job_folder(self, number):
-
-        job_folder = f"{self.__intermediate_dir}/{self.__project}/{number}"
+        job_folder = f"{self.get_working_dir()}/jobs/{number}"
         
         if not os.path.exists(f"{job_folder}"):
             if self.dry_run:
@@ -181,50 +192,17 @@ class MutPredpy:
                 os.mkdir(f"{job_folder}")
         
         return job_folder
-
-
-
-    def set_mutpred_output(self, number):
-
-        output_num = f"{self.__intermediate_dir}/{self.__project}/{number}"
-        if not os.path.exists(f"{output_num}"):
-            if self.dry_run:
-                print (f"(Dry Run) {output_num} created")
-            else:
-                os.mkdir(f"{output_num}")
-        
-        return output_num
     
 
-    def set_log_output(self):
-        logs = f"./logs"
+    def get_log_folder(self):
+        logs = f"{self.get_working_dir()}/logs"
         if not os.path.exists(f"{logs}"):
             if self.dry_run:
                 print (f"(Dry Run) {logs} created")
             else:
                 os.mkdir(f"{logs}")
-
-        log_output = f"{logs}/{self.__project}"
-        if not os.path.exists(f"{log_output}"):
-            if self.dry_run:
-                print (f"(Dry Run) {log_output} created")
-            else:
-                os.mkdir(f"{log_output}")
-
-
-
-    def read_input_data(self):
         
-        header_rows = []
-        header_info = ""
-        for i, line in enumerate(open(self.__input)):
-            if line.startswith('##'):
-                header_rows.append(i)
-                header_info += line
-
-        input_data = pd.read_csv(self.__input, sep="\t", skiprows = header_rows)
-
-        return header_info, input_data
+        return logs
 
 
     def hgvsp(self, data):
@@ -295,7 +273,7 @@ class MutPredpy:
         elif self.file_format == "VCF-info" and self.annotation == "SnpEff":
             
             columns = []
-            for line in self.header_data.split("\n"):
+            for line in self.get_input_headers().split("\n"):
                 if "ID=ANN" in line:
                     columns = line.split("'")[1].split(" | ")
 
@@ -507,9 +485,9 @@ class MutPredpy:
 
     def write_sequence_to_file(self, number, file_number, header, sequence):
 
-        output_folder = self.set_job_folder(number=file_number)
+        output_folder = self.get_job_folder(number=file_number)
 
-        output_file = f"{output_folder}/{self.__base}.missense_{file_number}.faa"
+        output_file = f"{output_folder}/input.faa"
         #print (f"Writing > {output_file}")
         if number == 0:
             #if os.path.exists(output_file):
@@ -591,10 +569,10 @@ class MutPredpy:
                     
                     if self.dry_run:
                         pass
-                        #self.set_mutpred_output(file_number)
+                        #self.set_job_folder(file_number)
                     else:
                         self.write_sequence_to_file(number, file_number, header, sequence)
-                        self.set_mutpred_output(file_number)
+                        self.get_job_folder(file_number)
 
                     memory.append(split["Memory Estimate (MB)"])
                     number = split["Time Estimate (hrs)"]
@@ -615,11 +593,11 @@ class MutPredpy:
                 ## write to file 
                 if self.dry_run:
                     pass
-                    #self.set_mutpred_output(file_number)
+                    #self.set_job_folder(file_number)
 
                 else:
                     self.write_sequence_to_file(number, file_number, header, sequence)
-                    self.set_mutpred_output(file_number)
+                    self.get_job_folder(file_number)
                 
                 number += row[variable]
                 #print (number, threshold)
@@ -646,11 +624,11 @@ class MutPredpy:
 
             if self.dry_run:
                     pass
-                    #self.set_mutpred_output(file_number)
+                    #self.set_job_folder(file_number)
 
             else:
                 self.write_sequence_to_file(number, file_number, header, sequence)
-                self.set_mutpred_output(file_number)
+                self.get_job_folder(file_number)
                 
         job_information = pd.DataFrame(job_information)
 
@@ -664,14 +642,14 @@ class MutPredpy:
 
     def prepare_mutpred_input(self):
 
-        input_data = self.get_input_data()
+        input_data = self.get_input()
         
         self.variant_data, hgvsp_status = self.hgvsp(input_data)
         
         if hgvsp_status:
-
+            
             self.variant_data = self.filter_canonical(self.variant_data)
-
+            
             self.variant_data = fasta.collect_mutations(self.variant_data, self.file_format)
 
             self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
@@ -712,11 +690,10 @@ class MutPredpy:
 
             print (f"Post filtered variants: {self.count_mutations(self.variant_data)}")
 
-            self.set_intermediate_directory()
-            
-            self.set_project_folder()
+            abs_working_dir = os.path.abspath(self.get_working_dir())
 
-            self.set_log_output()
+            ## This is necessary to initiate the logs folder for the LSF script.
+            logs = self.get_log_folder()
 
             tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
             
@@ -727,11 +704,11 @@ class MutPredpy:
                 for user in range(len(per_user_tech_requirements)):
                     lsf.usage_report(per_user_tech_requirements[user])
 
-                    lsf.build_lsf_config_file(per_user_tech_requirements[user], self.get_intermediate_dir(), self.get_project(), self.get_base(), user, self.dry_run)
+                    lsf.build_lsf_config_file(per_user_tech_requirements[user], abs_working_dir, self.get_base(), user, self.dry_run)
             else:
                 lsf.usage_report(tech_requirements)
 
-                lsf.build_lsf_config_file(tech_requirements, self.get_intermediate_dir(), self.get_project(), self.get_base(), user, self.dry_run)
+                lsf.build_lsf_config_file(tech_requirements, abs_working_dir, self.get_base(), user, self.dry_run)
 
         else:
             print (f"HGVSp key not found in input columns -> [{','.join(self.variant_data.columns)}]")
@@ -741,6 +718,8 @@ class MutPredpy:
 
 if __name__ == "__main__":
 
+
+    exit()
     parser = argparse.ArgumentParser(description='Take a list of chromosomal variants, Ensembl protein mutations, or other formats and output faa protein sequence files ready for MutPred2 intake.')
 
     def time_minimum(x):
@@ -755,8 +734,6 @@ if __name__ == "__main__":
                         help="Target time in hours to run the jobs")
     parser.add_argument('--input', type=str, nargs=1,
                         help='The name of the input filename that is located in the data folder.')
-    parser.add_argument('--project', type=str, nargs=1,
-                        help='The name of the project for organization purposes')
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--canonical", action="store_true")
 
@@ -764,7 +741,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input   = args.input[0]
-    project = args.project[0]
+    working_dir = args.working_idr[0]
     time    = args.time
     dry_run = args.dry_run
     canonical = args.canonical
@@ -772,7 +749,7 @@ if __name__ == "__main__":
     
     mut = MutPredpy(
         input=input,
-        project=project,
+        working_dir=working_dir,
         time=time,
         dry_run=dry_run,
         canonical=canonical

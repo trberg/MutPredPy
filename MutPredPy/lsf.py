@@ -163,17 +163,17 @@ def config_template():
 #BSUB -R span[hosts=1]
 #BSUB -R rusage[mem=$mem]
 #BSUB -W $time
-#BSUB -q long
+#BSUB -q premium
 #BSUB -J $job$job_array
 #BSUB -cwd /sc/arion/projects/pejaverlab/lab_software/MutPredPy/tools/mutpred2.0
-#BSUB -oo /sc/arion/projects/pejaverlab/lab_software/MutPredPy/logs/$project/out_$base.%J.faa_file_%I
-#BSUB -e /sc/arion/projects/pejaverlab/lab_software/MutPredPy/logs/$project/err_$base.%J.faa_file_%I
+#BSUB -oo $working_dir/logs/$base.%J.job_%I.out
+#BSUB -e $working_dir/logs/$base.%J.job_%I.err
 
 module load MCR/R2017b;
 
 /sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev \
--i /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/$project/$index/$base.missense_$index.faa \
--o /sc/arion/projects/pejaverlab/lab_software/MutPredPy/$intermediate_dir/$project/$index/$base.missense_output_$index.txt \
+-i $working_dir/$index/input.faa \
+-o $working_dir/$index/output.txt \
 -d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/ \
 -p 1 -c 1 -b 0 -t 1 -f 2 \
 
@@ -189,7 +189,7 @@ module load MCR/R2017b;
 
 """
 
-def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, user, dry_run):
+def build_lsf_config_file(tech_requirements, working_dir, base, user, dry_run):
 
     user += 1
 
@@ -205,11 +205,10 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
         if len(jobs[i]) > 0:
             template = config_template().substitute({
                 'mem': int((max(jobs[i]["Memory Minimum"]) + memory_cushion)/cores),
-                'time': "336:00",#f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
-                'job': f"{project}_variants",
+                'time': f'{int(max(jobs[i]["Time Estimate"])) + time_cushion}:00',
+                'job': f"{base}_variants",
                 'job_array': build_job_array(jobs[i]['File']),
-                'project': project,
-                'intermediate_dir': intermediate_dir,
+                'working_dir': working_dir,
                 'base': base,
                 'index': "$LSB_JOBINDEX"
             })
@@ -221,11 +220,11 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
                 else:
                     os.mkdir("scripts")
             if job_type[i] == "normal":
-                output_config_file_name = f"{project}_{user}.lsf"
+                output_config_file_name = f"{base}_{user}.lsf"
             elif job_type[i] == "middle":
-                output_config_file_name = f"{project}_{user}_mid_mem.lsf"
+                output_config_file_name = f"{base}_{user}_mid_mem.lsf"
             elif job_type[i] == "high":
-                output_config_file_name = f"{project}_{user}_high_mem.lsf"
+                output_config_file_name = f"{base}_{user}_high_mem.lsf"
 
             print (template)
             print (f"Written to scripts/{output_config_file_name}")
@@ -233,5 +232,5 @@ def build_lsf_config_file(tech_requirements, intermediate_dir, project, base, us
             if dry_run:
                 pass
             else:
-                with open(f"scripts/{output_config_file_name}","w") as s:
+                with open(f"{working_dir}/scripts/{output_config_file_name}","w") as s:
                     s.write(template)
