@@ -31,7 +31,10 @@ class Status:
     
 
     def get_summary(self):
-        return os.path.abspath(self.__summary)
+        if self.__summary == "":
+            return False
+        else:
+            return os.path.abspath(self.__summary)
     
 
     def get_mutpred_output_file(self, jobid):
