@@ -31,7 +31,7 @@ class Status:
     
 
     def get_summary(self):
-        if self.__summary == "":
+        if not self.__summary:
             return False
         else:
             return os.path.abspath(self.__summary)
@@ -343,7 +343,11 @@ class Status:
     def mutpred_summary(self):
 
         if self.get_summary():
-            summary = pd.read_csv(self.get_summary(), sep="\t")
+            summary = pd.read_csv(self.get_summary(), sep="\t", dtype={
+                "num_mutations_faa":int,
+                "num_mutations_scored":int,
+                "percent":float
+            })
         else:
             #print ("start")
             status = self.mutpred_status()
@@ -359,11 +363,7 @@ class Status:
 
             summary = summary.sort_values("index")
 
-            summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False, dtype={
-                "num_mutations_faa":int,
-                "num_mutations_scored":int,
-                "percent":float
-            })
+            summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
 
         #print (summary)
 
