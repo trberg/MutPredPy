@@ -392,7 +392,7 @@ class Status:
         
         
 
-        self.unfinished_jobs(summary[summary["percent"] < 100])
+        self.unfinished_jobs(summary[summary["percent"] == 0])
 
 
 
