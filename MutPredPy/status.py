@@ -1,5 +1,6 @@
 import pandas as pd
 import argparse
+from datetime import datetime
 
 import re
 import os
@@ -363,7 +364,8 @@ class Status:
 
             summary = summary.sort_values("index")
 
-            summary.to_csv(f"mutpred2.summary.csv", sep="\t", index=False)
+            cur_date = datetime.today().strftime('%m%d%Y')
+            summary.to_csv(f"mutpred2.summary.{cur_date}.csv", sep="\t", index=False)
 
         #print (summary)
 
