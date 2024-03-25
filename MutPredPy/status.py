@@ -395,7 +395,7 @@ class Status:
         
         
         if self.__show_incomplete:
-            self.unfinished_jobs(summary[summary["percent"] > 0])
+            self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)])
         else:
             self.unfinished_jobs(summary[summary["percent"] == 0])
 
