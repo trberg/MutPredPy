@@ -10,10 +10,11 @@ from . import lsf
 
 
 class Status:
-    def __init__(self, job_dir, all, summary="", logs=""):
+    def __init__(self, job_dir, all, show_incomplete, summary="", logs=""):
         
         self.__job_dir = job_dir
         self.__show_all = all
+        self.__show_incomplete = show_incomplete
         self.__log_dir = logs
         
         if summary == "":
@@ -393,8 +394,10 @@ class Status:
         """)
         
         
-
-        self.unfinished_jobs(summary[summary["percent"] == 0])
+        if self.__show_incomplete:
+            self.unfinished_jobs(summary[summary["percent"] > 0])
+        else:
+            self.unfinished_jobs(summary[summary["percent"] == 0])
 
 
 
@@ -404,7 +407,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Check the status of a currently running or a previously ran MutPred2 job.')
     
-    parser.add_argument('--job_dir', type=str, nargs='?', help='Path to the job directory for MutPred2')
+    parser.add_argument('--job_dir', type=str, nargs='?', 
+                        help='Path to the job directory for MutPred2')
+    parser.add_argument('--show_incomplete', action="store_true", 
+                        help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.')
     
     args = parser.parse_args()
 
