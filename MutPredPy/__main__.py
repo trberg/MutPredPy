@@ -38,7 +38,8 @@ def command_status(args):
     summary = status.Status(
         job_dir=args.job_dir,
         summary=args.summary,
-        all=args.all
+        all=args.all,
+        show_incomplete=args.show_incomplete
     )
 
     summary.mutpred_summary()
@@ -147,6 +148,8 @@ def build_parser():
                 "--all", action="store_true", 
                 help='Show the progress status of all files and jobs'
             )
+    parser_mutpredStatus.add_argument('--show_incomplete', action="store_true", required=False,
+                help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.')
     parser_mutpredStatus.set_defaults(func=command_status)
 
 
