@@ -214,11 +214,11 @@ def build_lsf_config_file(tech_requirements, working_dir, base, user, dry_run):
             })
             #print (template)
 
-            if not os.path.exists("scripts"):
+            if not os.path.exists(f"{working_dir}/scripts"):
                 if dry_run:
                     print ("No 'scripts' folder.")
                 else:
-                    os.mkdir("scripts")
+                    os.mkdir(f"{working_dir}/scripts")
             if job_type[i] == "normal":
                 output_config_file_name = f"{base}_{user}.lsf"
             elif job_type[i] == "middle":
@@ -227,7 +227,7 @@ def build_lsf_config_file(tech_requirements, working_dir, base, user, dry_run):
                 output_config_file_name = f"{base}_{user}_high_mem.lsf"
 
             print (template)
-            print (f"Written to scripts/{output_config_file_name}")
+            print (f"Written to {working_dir}/scripts/{output_config_file_name}")
             
             if dry_run:
                 pass

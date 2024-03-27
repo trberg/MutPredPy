@@ -1,4 +1,5 @@
 import difflib
+from pkg_resources import Requirement, resource_filename
 
 import pandas as pd
 import numpy as np
@@ -210,10 +211,13 @@ def filter_non_missense(data, file_format, annotation):
         
 
 def memory_estimate_function():
-    return np.poly1d(np.load("resources/memory_usage.npy"))
+    #("/Users/bergqt01/Research/MutPredPy/resources/memory_usage.npy"))
+    return np.poly1d(np.load(os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/memory_usage.npy")))) 
+    
 
 def time_estimate_function():
-    return np.poly1d(np.load("resources/sequence_time.npy"))
+    #"/Users/bergqt01/Research/MutPredPy/resources/sequence_time.npy"))
+    return np.poly1d(np.load(os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/sequence_time.npy"))))
 
 
 def read_mutpred_input_fasta(faa_file):
@@ -227,7 +231,7 @@ def read_mutpred_input_fasta(faa_file):
             "sequence": ""
         }
     
-    index = faa_file.split("/")[-1].split(".")[-2].split("_")[-1]
+    cur_job = faa_file.split("/")[-2].split("_")[-1]
     
     with open(faa_file, "r") as fasta:
         cur_line = 1
@@ -265,7 +269,7 @@ def read_mutpred_input_fasta(faa_file):
     #print (output)
     output = output.drop_duplicates()
 
-    output["index"] = index
+    output["job"] = cur_job
 
     return output
 

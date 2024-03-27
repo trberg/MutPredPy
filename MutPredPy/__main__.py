@@ -26,8 +26,7 @@ def command_mutpred_prep(args):
         time=args.time,
         dry_run=args.dry_run,
         canonical=args.canonical,
-        database=args.database,
-        fasta_location=args.fasta
+        database=args.database
     )
     
     mut.prepare_mutpred_input()
@@ -71,9 +70,7 @@ def command_remainder(args):
     
     
     R = remainder.Remaining(
-        input=args.input,
-        project=args.project,
-        exclude=args.exclude,
+        working_dir=args.working_dir,
         time=args.time,
         dry_run=args.dry_run
     )
@@ -123,10 +120,6 @@ def build_parser():
                 "--database", type=str, nargs='?', default="None",
                 help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
             )
-    parser_mutpredPrepare.add_argument(
-                "--fasta", type=str, nargs='?', default="resources/Homo_sapiens.GRCh38.combined.pep.all.fa",
-                help="Reference fasta file to look up sequences."
-    )
     parser_mutpredPrepare.set_defaults(func=command_mutpred_prep)
     
 
@@ -211,12 +204,9 @@ def build_parser():
             help="Find the leftover unscored variants and create new jobs."
         )
 
-    parser_mutpredRemainder.add_argument('--input', type=str, nargs='?',
-                        help='The name of the input filename that is located in the data folder.')
-    parser_mutpredRemainder.add_argument('--project', type=str, nargs='?',
-                        help='The name of the project for organization purposes')
-    parser_mutpredRemainder.add_argument('--exclude', type=str, nargs='?', required=False, default='[]',
-                        help='LSF sequence of jobs to exlude from the remainder function')
+
+    parser_mutpredRemainder.add_argument('--working_dir', type=str, nargs='?',
+                        help='Path to the working directory of the ongoing mutpred2 project. A "jobs" folder and "scripts" folder should be in this working directory.')
     parser_mutpredRemainder.add_argument('--time', type=time_minimum, nargs="?", default=24,
                         help="Target time in hours to run the jobs")
     parser_mutpredRemainder.add_argument("--dry_run", action="store_true")
