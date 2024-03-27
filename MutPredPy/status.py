@@ -28,7 +28,6 @@ class Status:
      
     
     def get_log_dir(self):
-
         return self.__log_dir.rstrip("/")
     
 

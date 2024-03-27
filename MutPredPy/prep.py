@@ -1,6 +1,7 @@
 import pandas as pd
 import argparse
 import numpy as np
+from pkg_resources import Requirement, resource_filename
 
 import os
 import re
@@ -14,7 +15,7 @@ from . import utils as u
 
 
 class MutPredpy:
-    def __init__(self, input, working_dir, time, dry_run, canonical, database, fasta_location):
+    def __init__(self, input, working_dir, time, dry_run, canonical, database):
         
         self.__working_dir = working_dir
         self.__input = input
@@ -35,15 +36,16 @@ class MutPredpy:
             self.db_config_name = "Local"
 
         
-        self.__fasta_location = fasta_location
+        self.__fasta_location = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa"))
 
         self.fasta = fasta.collect_fasta(self.__fasta_location)
         
-        self.__header_data, self.__input_data = self.read_input_data(self.get_input_path())
+        if self.__input != "":
+            self.__header_data, self.__input_data = self.read_input_data(self.get_input_path())
         
-        self.file_format = self.input_format()
+            self.file_format = self.input_format()
         
-        self.annotation = self.get_annotation()
+            self.annotation = self.get_annotation()
         
 
 
