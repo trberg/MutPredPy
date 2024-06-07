@@ -27,7 +27,8 @@ def command_mutpred_prep(args):
         dry_run=args.dry_run,
         canonical=args.canonical,
         database=args.database,
-        all_possible=args.all_possible
+        all_possible=args.all_possible,
+        fasta=args.fasta
     )
     
     mut.prepare_mutpred_input()
@@ -127,6 +128,10 @@ def build_parser():
                 "--database", type=str, nargs='?', default="None",
                 help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
             )
+    parser_mutpredPrepare.add_argument(
+                "__fasta", type=str, nargs='?',
+                help='Path to the combined fasta file from Ensembl.'
+    )
     parser_mutpredPrepare.set_defaults(func=command_mutpred_prep)
     
 

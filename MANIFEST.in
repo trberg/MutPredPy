@@ -1,0 +1,4 @@
+include resources/Homo_sapiens.GRCh37.combined.pep.all.fa
+include resources/Homo_sapiens.GRCh38.combined.pep.all.fa
+include resources/memory_usage.npy
+include resources/sequence_time.npy
