@@ -129,7 +129,7 @@ def build_parser():
                 help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
             )
     parser_mutpredPrepare.add_argument(
-                "__fasta", type=str, nargs='?',
+                "--fasta", type=str, nargs='?',
                 help='Path to the combined fasta file from Ensembl.'
     )
     parser_mutpredPrepare.set_defaults(func=command_mutpred_prep)
