@@ -1,4 +1,0 @@
-include MutPredPy/resources/Homo_sapiens.GRCh37.combined.pep.all.fa
-include MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa
-include MutPredPy/resources/memory_usage.npy
-include MutPredPy/resources/sequence_time.npy
