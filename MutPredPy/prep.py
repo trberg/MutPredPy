@@ -13,7 +13,7 @@ from . import sql_connection
 from . import utils as u
 
 class MutPredpy:
-    def __init__(self, input, working_dir, time, dry_run, canonical, database, all_possible, fasta):
+    def __init__(self, input, working_dir, time, dry_run, canonical, database, all_possible, fasta_path):
         
 
 
@@ -36,10 +36,12 @@ class MutPredpy:
             self.db_config_name = "Local"
         
         #self.__fasta_location = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa"))
-        self.__fasta_location = os.path.abspath(fasta)
+        self.__fasta_location = os.path.abspath(fasta_path)
+        #print (self.__fasta_location)
 
         self.fasta = fasta.collect_fasta(self.__fasta_location)
-        
+        #print (self.fasta)
+
         if self.__input != "":
             self.__header_data, self.__input_data = self.read_input_data(self.get_input_path())
         
