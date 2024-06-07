@@ -28,7 +28,7 @@ def command_mutpred_prep(args):
         canonical=args.canonical,
         database=args.database,
         all_possible=args.all_possible,
-        fasta=args.fasta
+        fasta_path=args.fasta
     )
     
     mut.prepare_mutpred_input()
