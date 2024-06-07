@@ -7,16 +7,16 @@ import os
 import re
 import hashlib
 
-
 from . import fasta
 from . import lsf
 from . import sql_connection
 from . import utils as u
 
-
 class MutPredpy:
-    def __init__(self, input, working_dir, time, dry_run, canonical, database):
+    def __init__(self, input, working_dir, time, dry_run, canonical, database, all_possible):
         
+
+
         self.__working_dir = working_dir
         self.__input = input
         self.__base = input.split("/")[-1].split(".")[0]
@@ -34,7 +34,6 @@ class MutPredpy:
         else:
             self.database = database
             self.db_config_name = "Local"
-
         
         self.__fasta_location = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa"))
 
@@ -720,6 +719,16 @@ class MutPredpy:
 
 if __name__ == "__main__":
 
+    import utils as u
+
+    engine = u.get_sql_engine(config_name="Remote", config_file="/Users/bergqt01/Research/MutPredPy/resources/sql_configs.yaml")
+
+
+
+    mutations = pd.read_sql("SELECT COUNT(*) AS variant_count FROM Variant", con=engine)
+    #query = pd.read_sql("SELECT * FROM Variant limit 10", con=engine)
+    #tables = pd.read_sql("SHOW TABLES", con=engine)
+    print (mutations)
 
     exit()
     parser = argparse.ArgumentParser(description='Take a list of chromosomal variants, Ensembl protein mutations, or other formats and output faa protein sequence files ready for MutPred2 intake.')
