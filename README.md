@@ -8,6 +8,27 @@ pip install --user username /path/to/tool/directory
 
 ## Commands
 
+### mutpredpy
+```
+usage: mutpredpy [-h] {prepare,status,debug,merge,remainder} ...
+
+MutPredPy functions
+
+options:
+  -h, --help            show this help message and exit
+
+commands:
+  The following commands are available:
+
+  {prepare,status,debug,merge,remainder}
+                        For additional help: "MutPredPy <COMMAND> -h"
+    prepare             Takes an input file and outputs faa files in preparation to run MutPred suite
+    status              Check the status of a given job with the given parameters
+    debug               Check the status of a given job with the given parameters
+    merge               Combine the output scored mutations from MutPred into a single file.
+    remainder           Find the leftover unscored variants and create new jobs.
+```
+
 ### prepare
 Takes an input VEP annotated file and outputs parallel MutPred2 jobs with LSF scripts ready to run.
 
