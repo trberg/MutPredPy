@@ -448,7 +448,7 @@ class MutPredpy:
             data = data[cur_cols]
             print (f"Post-filter: {len(data)}")
 
-        else:
+        elif os.path.exists("scores/MutPred2.tsv"):
             scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
 
             cur_cols = data.columns
@@ -472,7 +472,7 @@ class MutPredpy:
             data = data[~data["protein_id"].isin(exclude)]
             print (f"Post-filter: {len(data)}")
             data.drop("protein_id", inplace=True, axis=1)
-
+        
         return data
     
 
