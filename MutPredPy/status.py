@@ -243,7 +243,7 @@ class Status:
         logs = self.retrieve_logs()
 
         if True:
-            status["ID"] = status["ID"].str.replace("NP_","").str.replace("NM_","").str.split("_").str[0]
+            status["ID"] = status["ID"].str.replace("NP_","NP").str.replace("NM_","NM").str.split("_").str[0]
 
             summary = status.groupby(["index","ID"])[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
 
