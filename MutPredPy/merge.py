@@ -1,10 +1,11 @@
 from . import utils as u
 from . import fasta
 import pandas as pd
+import os
 
 
 class Merge:
-    def __init__(self, database, assembly, dry_run):
+    def __init__(self, input, output, job_dir, database, assembly, dry_run):
         
         if "@" in database:
             self.config_file, self.config_name = database.split("@")
@@ -12,6 +13,9 @@ class Merge:
             self.config_file = database
             self.config_name = "Local"
         
+        self.input = input
+        self.output = output
+        self.job_dir = job_dir
         self.dry_run = dry_run
         self.assembly = assembly
         self.scored = self.mutpred_scores()
@@ -23,15 +27,18 @@ class Merge:
 
     def mutpred_scores(self):
 
+
+        scores = pd.concat([pd.read_csv(f"{m}/output.txt") for m in os.listdir(self.job_dir) if os.path.exists()])
         #engine = u.get_sql_engine(config_file=self.config_file, config_name=self.config_name)
-        
+        print (scores)
+        exit()
         #scores = pd.read_sql("SELECT * FROM mutations", con=engine)
-        if self.assembly == "hg19":
-            scores = pd.read_csv("../NYCKidSeqVUS/hg19.missense_output_2.txt", sep=",")
-        elif self.assembly == "hg38":
-            scores = pd.read_csv("../NYCKidSeqVUS/hg38.missense_output_1.txt", sep=",")
-        scores["Ensembl_proteinid_v"] = scores["ID"].str.split("|").str[0]
-        scores["mutation"] = scores["Substitution"]
+        #if self.assembly == "hg19":
+        #    scores = pd.read_csv("../NYCKidSeqVUS/hg19.missense_output_2.txt", sep=",")
+        #elif self.assembly == "hg38":
+        #    scores = pd.read_csv("../NYCKidSeqVUS/hg38.missense_output_1.txt", sep=",")
+        #scores["Ensembl_proteinid_v"] = scores["ID"].str.split("|").str[0]
+        #scores["mutation"] = scores["Substitution"]
 
         return scores
 
