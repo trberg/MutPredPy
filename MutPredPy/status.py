@@ -364,7 +364,7 @@ class Status:
 
             summary = summary.sort_values("index")
 
-            cur_date = datetime.today().strftime('%m%d%Y')
+            cur_date = datetime.today().strftime('%m-%d-%Y_%H:%M:%S')
             summary.to_csv(f"mutpred2.summary.{cur_date}.csv", sep="\t", index=False)
 
         #print (summary)
