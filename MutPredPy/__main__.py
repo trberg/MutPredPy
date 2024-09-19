@@ -40,7 +40,8 @@ def command_status(args):
         job_dir=args.job_dir,
         summary=args.summary,
         all=args.all,
-        show_incomplete=args.show_incomplete
+        show_incomplete=args.show_incomplete,
+        logs=args.logs
     )
 
     summary.mutpred_summary()
@@ -52,7 +53,7 @@ def command_debug(args):
         summary=args.summary,
         all=args.all,
         show_incomplete=args.show_incomplete,
-        logs=args.log_path
+        logs=args.logs
     )
 
     mutpred_stat.mutpred_debugging()
@@ -62,11 +63,14 @@ def command_debug(args):
 def command_merge(args):
 
     mutpred_merge = merge.Merge(
+        input=args.input, 
+        output=args.output,
+        job_dir=args.job_dir,
         database=args.database,
         assembly=args.assembly,
         dry_run=args.dry_run
     )
-    mutpred_merge.merge(input=args.input, output=args.output)
+    mutpred_merge.merge()
 
 
 
@@ -154,7 +158,12 @@ def build_parser():
                 help='Show the progress status of all files and jobs'
             )
     parser_mutpredStatus.add_argument('--show_incomplete', action="store_true", required=False,
-                help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.')
+                help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.'
+            )
+    parser_mutpredStatus.add_argument(
+                '--logs', type=str, nargs='?',
+                help='Path to the directory containing the job logs.'
+            )
     parser_mutpredStatus.set_defaults(func=command_status)
 
 
@@ -178,7 +187,12 @@ def build_parser():
                 help='Show the progress status of all files and jobs'
             )
     parser_mutpredDebug.add_argument('--show_incomplete', action="store_true", required=False,
-                help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.')
+                help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.'
+            )
+    parser_mutpredDebug.add_argument(
+                '--logs', type=str, nargs='?',
+                help='Path to the directory containing the job logs.'
+            )
 
     parser_mutpredDebug.set_defaults(func=command_debug)
 
@@ -196,6 +210,10 @@ def build_parser():
     parser_mutpredMerge.add_argument(
                 "--output", type=str, nargs='?',
                 help='Path to the output file'
+            )
+    parser_mutpredMerge.add_argument(
+                '--job_dir', type=str, nargs='?',
+                help='Path to the directory containing the MutPred2 jobs.'
             )
     parser_mutpredMerge.add_argument(
                 "--database", type=str, nargs='?', default="None",
