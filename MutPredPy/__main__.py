@@ -161,7 +161,7 @@ def build_parser():
                 help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.'
             )
     parser_mutpredStatus.add_argument(
-                '--logs', type=str, nargs='?',
+                '--logs', type=str, nargs='?', required=False, default="",
                 help='Path to the directory containing the job logs.'
             )
     parser_mutpredStatus.set_defaults(func=command_status)
@@ -190,7 +190,7 @@ def build_parser():
                 help='When listing the remaining jobs, show all incomplete jobs and not just jobs with zero output.'
             )
     parser_mutpredDebug.add_argument(
-                '--logs', type=str, nargs='?',
+                '--logs', type=str, nargs='?', required=False, default="",
                 help='Path to the directory containing the job logs.'
             )
 
