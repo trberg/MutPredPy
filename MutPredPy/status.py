@@ -24,11 +24,11 @@ class Status:
     
     
     def get_job_dir(self):
-        return self.__job_dir.rstrip("/")
+        return os.path.abspath(self.__job_dir.rstrip("/"))
      
     
     def get_log_dir(self):
-        return self.__log_dir.rstrip("/")
+        return os.path.abspath(self.__log_dir.rstrip("/"))
     
 
     def get_summary(self):
@@ -137,7 +137,8 @@ class Status:
 
     def retrieve_logs(self):
         
-        l_reg = re.compile(f"err_.*.\d+.faa_file_\d+$")
+        #l_reg = re.compile(f"err_.*.\d+.faa_file_\d+$")
+        l_reg = re.compile(f".*.\d+.faa_file_\d+$")
         
         if not os.path.isdir(self.get_log_dir()):
             log_files = pd.DataFrame({"logs":[]})
