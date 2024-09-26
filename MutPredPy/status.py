@@ -22,13 +22,13 @@ class Status:
         else:
             self.__summary = summary
     
-    
+        
     def get_job_dir(self):
         return os.path.abspath(self.__job_dir.rstrip("/"))
      
     
     def get_log_dir(self):
-        return os.path.abspath(self.__log_dir.rstrip("/"))
+        return self.__log_dir.rstrip("/")
     
 
     def get_summary(self):
@@ -139,8 +139,9 @@ class Status:
         
         #l_reg = re.compile(f"err_.*.\d+.faa_file_\d+$")
         l_reg = re.compile(f".*.\d+.faa_file_\d+$")
-        
+        print (self.get_log_dir())
         if not os.path.isdir(self.get_log_dir()):
+            
             log_files = pd.DataFrame({"logs":[]})
             log_files["type"] = ""
             log_files["job"] = ""
@@ -150,6 +151,7 @@ class Status:
             log_files = log_files[["index", "hasError", "Error"]]
 
         else:
+            print ("HERE!")
             log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"{self.get_log_dir()}/") if l_reg.match(l)]})
         
             log_files["type"] = log_files["logs"].str.split("_").str[0]
@@ -242,7 +244,7 @@ class Status:
     def mutpred_logs(self, status):
 
         logs = self.retrieve_logs()
-
+    
         if True:
             status["ID"] = status["ID"].str.replace("NP_","NP").str.replace("NM_","NM").str.split("_").str[0]
 
@@ -343,7 +345,7 @@ class Status:
 
 
     def mutpred_summary(self):
-
+        
         if self.get_summary():
             summary = pd.read_csv(self.get_summary(), sep="\t", dtype={
                 "num_mutations_faa":int,
@@ -354,11 +356,11 @@ class Status:
             #print ("start")
             status = self.mutpred_status()
             #print (status)
-
+            
             #print ("before summary")
             summary = self.mutpred_logs(status).sort_values("index")
             #print (summary)
-
+            
             #print ("after summary")
             summary["hasError"].fillna(False, inplace=True)
             summary["Error"].fillna("", inplace=True)
