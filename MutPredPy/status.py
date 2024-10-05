@@ -1,6 +1,7 @@
 import pandas as pd
 import argparse
 from datetime import datetime
+from pkg_resources import Requirement, resource_filename
 
 import re
 import os
@@ -16,6 +17,10 @@ class Status:
         self.__show_all = all
         self.__show_incomplete = show_incomplete
         self.__log_dir = logs
+
+
+        ## Keyword   Term_reason  Integer_logged
+        self.__log_messages = pd.read_csv(os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/LSF_errors.csv")))
         
         if summary == "":
             self.__summary = False
@@ -28,7 +33,10 @@ class Status:
      
     
     def get_log_dir(self):
-        return self.__log_dir.rstrip("/")
+        if self.__log_dir == "":
+            return self.__log_dir
+        else:
+            return os.path.abspath(self.__log_dir.rstrip("/"))
     
 
     def get_summary(self):
@@ -109,10 +117,10 @@ class Status:
         error = ""
         
         with open(f"{self.get_log_dir()}/{log}") as l:
+            error_code = 0
             for line in l:
-                if len(line) > 1:
-                    error += line
-        
+                if len(line) > 1 and ("TERM" in line):
+                    return line.strip("\n")
         return error
 
     
@@ -126,7 +134,7 @@ class Status:
         cur_log = f"{self.get_log_dir()}/{log}"
         
         if os.path.exists(cur_log) and os.path.getsize(cur_log) > 0:
-            error = self.read_err_log(log).replace("\n",", ")
+            error = self.read_err_log(log)
             return pd.Series([True, error])
         
         else:
@@ -134,16 +142,25 @@ class Status:
             return pd.Series([False, error])
 
 
+    def get_job_index(self, log):
+
+        with open(log) as L:
+            for line in L:
+                
+                if line.startswith("Subject"):
+                    job,index = line.split(":")[1].strip(" Job ").strip("]").split("[")
+                    return pd.Series([job, index])
+                    #Subject: Job 137347991[10]: <phase3[1-4000]> in cluster <chimera> Exited
+            else:
+                return ["",""]
+
 
     def retrieve_logs(self):
         
-        #l_reg = re.compile(f"err_.*.\d+.faa_file_\d+$")
-        l_reg = re.compile(f".*.\d+.faa_file_\d+$")
         print (self.get_log_dir())
         if not os.path.isdir(self.get_log_dir()):
             
             log_files = pd.DataFrame({"logs":[]})
-            log_files["type"] = ""
             log_files["job"] = ""
             log_files["index"] = ""
             log_files["hasError"] = ""
@@ -151,21 +168,21 @@ class Status:
             log_files = log_files[["index", "hasError", "Error"]]
 
         else:
-            print ("HERE!")
-            log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"{self.get_log_dir()}/") if l_reg.match(l)]})
-        
-            log_files["type"] = log_files["logs"].str.split("_").str[0]
-            log_files["job"] = log_files["logs"].str.split(".").str[1]
-            log_files["index"] = log_files["logs"].str.split("_").str[-1].astype(int)
-        
-            latest_err_logs = pd.DataFrame(log_files.groupby(["index","type"])["job"].max()).reset_index()
             
-            log_files = log_files.merge(latest_err_logs, on=["index","type","job"], how="inner")
+            log_files = pd.DataFrame({"logs":[l for l in os.listdir(f"{self.get_log_dir()}/") if "out" in l]})
+
+            log_files[["job","index"]] = log_files["logs"].apply(lambda x: self.get_job_index(f"{self.get_log_dir()}/{x}"))
+        
+            latest_err_logs = pd.DataFrame(log_files.groupby(["index"])["job"].max()).reset_index()
+            
+            log_files = log_files.merge(latest_err_logs, on=["index","job"], how="inner")
             #print (log_files)
             
-            log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"], row["index"], row["job"]), axis=1)
+            log_files[["hasError","Error"]] = log_files.apply(lambda row: self.has_err_log(row["logs"]), axis=1)
             log_files = log_files[["index", "hasError", "Error"]]
+            
             log_files["Error"].fillna("No Errors", inplace=True)
+        
         return log_files
     
 
@@ -254,7 +271,7 @@ class Status:
             summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
 
         
-        #summary["index"] = summary["index"].astype(int)
+        summary["index"] = summary["index"].apply(lambda x: str(x) if "job_" not in x else x.split("_")[-1])
 
         summary["percent"] = round((summary["num_mutations_scored"]/summary["num_mutations_faa"])*100, 2)
         summary["remaining_mutations"] = summary["num_mutations_faa"] - summary["num_mutations_scored"]
@@ -399,7 +416,8 @@ class Status:
         if self.__show_incomplete:
             self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)])
         else:
-            print (summary[summary["percent"]==0])
+            print (summary[summary["percent"] == 0])
+            print (summary[summary["percent"] == 0].groupby("Error")["index"].count().reset_index())
             self.unfinished_jobs(summary[summary["percent"] == 0])
 
 
