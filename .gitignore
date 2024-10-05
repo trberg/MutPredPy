@@ -4,7 +4,7 @@ intermediates/
 logs/*
 scores/
 MutPredPy/__pycache__/
-resources/Homo_sapiens.GRCh38.combined.pep.all.fa
+resources/
 *.csv
 
 # Byte-compiled / optimized / DLL files
