@@ -12,4 +12,4 @@ from setuptools import setup
 # HACK: this must be kept because __init__ imports the discussion
 # modules which import requests which has to be installed first.
 
-setup(name="MutPredPy", version="1.1.0", package_data={"MutPredPy":['MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa','MutPredPy/resources/Homo_sapiens.GRCh37.combined.pep.all.fa','MutPredPy/resources/sequence_time.npy','MutPredPy/resources/memory_usage.npy']})
+setup(name="MutPredPy", version="1.1.0", package_data={"MutPredPy":['MutPredPy/resources/LSF_errors.csv','MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa','MutPredPy/resources/Homo_sapiens.GRCh37.combined.pep.all.fa','MutPredPy/resources/sequence_time.npy','MutPredPy/resources/memory_usage.npy']})

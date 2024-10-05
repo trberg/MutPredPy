@@ -1,0 +1,34 @@
+Keyword,Term_reason,Integer_logged
+TERM_ADMIN,Job killed by root or LSF administrator,15
+TERM_BUCKET_KILL,Job killed with bkill-b,23
+TERM_CHKPNT,Job killed after checkpointing,13
+TERM_CPULIMIT,Job killed after reaching LSF CPU usage limit,12
+TERM_CSM_ALLOC,Job killed by LSF due to CSM allocation API error,32
+TERM_CWD_NOTEXIST,Current working directory is not accessible or does not exist on the execution host,25
+TERM_DATA,Job killed by LSF due to failed data staging,29
+TERM_DEADLINE,Job killed after deadline expires,6
+TERM_EXTERNAL_SIGNAL,Job killed by a signal external to LSF,17
+TERM_FORCE_ADMIN,Job killed by root or LSF administrator without time for cleanup,9
+TERM_FORCE_OWNER,Job killed by owner without time for cleanup,8
+TERM_KUBE,Job killed by LSF due to Kubernetes integration,33
+TERM_LOAD,Job killed after load exceeds threshold,3
+TERM_MC_RECALL,Job killed by LSF due to multicluster job recall,30
+TERM_MEMLIMIT,Job killed after reaching LSF memory usage limit,16
+TERM_OTHER,Member of a chunk job in WAIT state killed and requeued after being switched to another queue.,4
+TERM_OWNER,Job killed by owner,14
+TERM_PREEMPT,Job killed after preemption,1
+TERM_PRE_EXEC_FAIL,Job killed after reaching pre-execution retry limit,28
+TERM_PROCESSLIMIT,Job killed after reaching LSF process limit,7
+TERM_RC,Job killed by LSF when an LSF resource connector execution host is reclaimed by cloud,34
+TERM_REMOVE_HUNG_JOB,Job removed from LSF,26
+TERM_REQUEUE_ADMIN,Job killed and requeued by root or LSF administrator,11
+TERM_REQUEUE_OWNER,Job killed and requeued by owner,10
+TERM_REQUEUE_RC,Job killed and requeued when an LSF resource connector execution host is reclaimed by cloud,31
+TERM_RMS,Job exited from an RMS system error,18
+TERM_RUNLIMIT,Job killed after reaching LSF run time limit,5
+TERM_SWAP,Job killed after reaching LSF swap usage limit,20
+TERM_THREADLIMIT,Job killed after reaching LSF thread limit,21
+TERM_UNKNOWN,LSF cannot determine a termination reason; 0 is logged but TERM_UNKNOWN is not displayed,0
+TERM_ORPHAN_SYSTEM,The orphan job was automatically terminated by LSF,27
+TERM_WINDOW,Job killed after queue run window closed,2
+TERM_ZOMBIE,Job exited while LSF is not available,19

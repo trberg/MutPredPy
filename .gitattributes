@@ -1,0 +1,2 @@
+*.fa filter=lfs diff=lfs merge=lfs -text
+MutPredPy/resources/Homo_sapiens.GRCh*.combined.pep.all.fa filter=lfs diff=lfs merge=lfs -text
