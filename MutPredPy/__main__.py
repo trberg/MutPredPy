@@ -41,7 +41,8 @@ def command_status(args):
         summary=args.summary,
         all=args.all,
         show_incomplete=args.show_incomplete,
-        logs=args.logs
+        logs=args.logs,
+        script=args.script
     )
 
     summary.mutpred_summary()
@@ -163,6 +164,10 @@ def build_parser():
     parser_mutpredStatus.add_argument(
                 '--logs', type=str, nargs='?', required=False, default="",
                 help='Path to the directory containing the job logs.'
+            )
+    parser_mutpredStatus.add_argument(
+                '--script', type=str, nargs='?', required=False, default=False,
+                help='If path is included, MutPredPy will output new scripts with adjustments for memory and time errors. Path to one of the scripts that was run for this project.'
             )
     parser_mutpredStatus.set_defaults(func=command_status)
 
