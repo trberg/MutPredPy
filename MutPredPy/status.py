@@ -417,7 +417,7 @@ class Status:
             self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)])
         else:
             print (summary[summary["percent"] == 0])
-            print (summary[summary["percent"] == 0].groupby("Error")["index"].count().reset_index())
+            print (summary[summary["percent"] == 0].fillna("Unknown").groupby("Error")["index"].count().reset_index())
             self.unfinished_jobs(summary[summary["percent"] == 0])
 
 
