@@ -463,10 +463,12 @@ class Status:
 
             for error_type in error_types["Type"]:
                 print ("Error:", error_type)
+                print (summary)
                 print (self.unfinished_jobs(summary[(summary["percent"] < 100) & (summary["Type"] == error_type)]))
                 print (" ")
-
-        if self.write_script_status:
+        
+        
+        if self.write_script_status():
             for error in error_types["Type"]:
                 self.create_scripts(summary[(summary["percent"] < 100) & (summary["Type"] == error)], error)
         else:
