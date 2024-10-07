@@ -121,6 +121,14 @@ class Status:
             for line in l:
                 if len(line) > 1 and ("TERM" in line):
                     return line.strip("\n")
+                elif len(line) > 1 and ("MATLAB is exiting because of fatal error" in line):
+                    next_line = next(l)
+                    if "Killed" in next_line or "Bus" in next_line:
+                        return line.strip("\n") + ": " + "Memory Error"
+                    elif "Bus" in next_line:
+                        return line.strip("\n") + ": " + "Memory Error"
+                    else:
+                        return line.strip("\n") + ": " + next_line.strip("\n") 
         return error
 
     
