@@ -11,12 +11,15 @@ from . import lsf
 
 
 class Status:
-    def __init__(self, job_dir, all, show_incomplete, summary="", logs=""):
+    def __init__(self, job_dir, all, show_incomplete, summary="", logs="", script=False):
         
         self.__job_dir = job_dir
         self.__show_all = all
         self.__show_incomplete = show_incomplete
         self.__log_dir = logs
+        self.__write_new_scripts = bool(script)
+        if self.__write_new_scripts:
+            self.__template_script = script
 
 
         ## Keyword   Term_reason  Integer_logged
@@ -27,7 +30,15 @@ class Status:
         else:
             self.__summary = summary
     
+
+    def write_script_status(self):
+        return self.__write_new_scripts
+
+
+    def get_script(self):
+        return os.path.abspath(self.__template_script)
         
+
     def get_job_dir(self):
         return os.path.abspath(self.__job_dir.rstrip("/"))
      
@@ -104,9 +115,11 @@ class Status:
             scores["num_mutations"] = scores["Substitution"].apply(len).astype(int)
             
             scores["index"] = jobid
+
+            scores = scores[["ID","num_mutations","index"]]
             
         else:
-            scores = pd.DataFrame(columns=["ID","Substitution","num_mutations","index"])
+            scores = pd.DataFrame(columns=["ID","num_mutations","index"])
 
         
         return scores
@@ -248,18 +261,35 @@ class Status:
 
             if os.path.isdir(f"{self.get_job_dir()}/{job}"):
 
-                faa = self.retrieve_faas(job)
-                #print (faa)
+                if not os.path.exists(f"{self.get_job_dir()}/{job}/completed.txt"):
+                    
+                    faa = self.retrieve_faas(job)
+                    #print (faa)
 
-                scores = self.retrieve_outputs(job)
-                #print (scores)
-                
-                #exit()
+                    scores = self.retrieve_outputs(job)
+                    #print (scores)
+                    
+                    #exit()
 
-                status = faa.merge(scores, on=["ID", "index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
-                status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
+                    status = faa.merge(scores, on=["ID", "index"], how="outer", suffixes=("_faa","_scored")).fillna(0)
+                    status["complete"] = status.apply(lambda x: x["num_mutations_faa"]==x["num_mutations_scored"], axis=1)
 
-                all_statuses.append(status)
+                    if sum(status["num_mutations_faa"]) == sum(status["num_mutations_scored"]):
+                        self.mark_as_completed(job)
+                        
+                    all_statuses.append(status)
+                    
+                else:
+
+                    faa = self.retrieve_faas(job)
+                    
+                    faa.rename(columns={"num_mutations":"num_mutations_faa"}, inplace=True)
+                    faa["num_mutations_scored"] = faa["num_mutations_faa"]
+                    #faa["percent"] = 100.0
+                    faa["complete"] = True
+
+                    all_statuses.append(faa)
+
 
         all_statuses = pd.concat(all_statuses)
 
@@ -270,13 +300,9 @@ class Status:
 
         logs = self.retrieve_logs()
     
-        if True:
-            status["ID"] = status["ID"].str.replace("NP_","NP").str.replace("NM_","NM").str.split("_").str[0]
+        status["ID"] = status["ID"].str.replace("NP_","NP").str.replace("NM_","NM").str.split("_").str[0]
 
-            summary = status.groupby(["index","ID"])[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
-
-        else:
-            summary = status.groupby("index")[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
+        summary = status.groupby(["index","ID"])[["num_mutations_faa","num_mutations_scored"]].sum().reset_index()
 
         
         summary["index"] = summary["index"].apply(lambda x: str(x) if "job_" not in x else x.split("_")[-1])
@@ -288,70 +314,63 @@ class Status:
         
         return summary
 
-    
-    def mutpred_debugging(self):
 
-        status = self.mutpred_status()
+    def mark_as_completed(self, job):
 
-        logs = self.mutpred_logs(status)
-        logs["hasError"].fillna(False, inplace=True)
-        logs["Error"].fillna("",inplace=True)
-
-        
-        for index, row in logs.iterrows():
+        if self.get_job_dir() != "":
+            with open(f"{self.get_job_dir()}/{job}/completed.txt", "w") as complete:
+                complete.write("completed")
+                return True    
             
-            if row["hasError"] and "Subscript indices must either be real positive integers or logicals." in row["Error"]:
-                output = self.get_mutpred_output_file_path(row['index'])
-                #print (output)
+        return False
+            
 
-                mutpred_scores = self.read_mutpred_output(output, row['index'])
-                #print (mutpred_scores)
-                
-                input_faa = fasta.read_mutpred_input_fasta(self.get_mutpred_input_file_path(self.get_job_dir(), row['index']))
-                input_faa["mutation"] = input_faa["mutations"].str.replace(","," ")
-                #print (input_faa)
+    def create_scripts(self, job_status, error):
 
-                problem = input_faa[~input_faa["ID"].isin(mutpred_scores["ID"])].sort_values("line", ascending=True).iloc[0]
-                print (f"============ {problem['index']} ============")
-                print (f"Error: {row['Error']}")
-                print (f"Problem: {problem['index']}")
-                print (f"Mutations: {problem['mutation']}")
-                #print (f"Sequence: {problem['sequence']}")
-                print(fasta.check_sequences(problem))
+        script = self.get_script()
+        script_dir = "/".join(script.split("/")[:-1])
 
-                cur_sequence = problem["sequence"]
-                position_adjustment = 0
-                mutations = sorted([(int(re.findall(r'\d+', m)[0]), m.replace(str(re.findall(r'\d+', m)[0]),"|").split("|")[0]) for m in problem["mutation"].split(" ")])
+        if error == "Memory":
+            output_script = f"{script_dir}/mutpred2_high_mem_remaining.lsf"
+            with open(output_script, "w") as out:
+                with open(script) as s:
+                    for line in s:
+                        if "#BSUB -R rusage[mem=" in line:
+                            mem_line = "#BSUB -R rusage[mem=6000]\n"
+                            out.write(mem_line)
+                        
+                        elif "#BSUB -J" in line:
+                            job_line = f'{line.split("[")[0]}{self.unfinished_jobs(job_status)}\n'
+                            out.write(job_line)
 
-                for mut in mutations:
-                    
-                    loc = mut[0] - 1
+                        else:
+                            out.write(line)
+            
 
-                    ref = mut[1]
+        elif error == "Time":
+            output_script = f"{script_dir}/mutpred2_long_time_remaining.lsf"
+            with open(output_script, "w") as out:
+                with open(script) as s:
+                    for line in s:
+                        if "#BSUB -q" in line:
+                            out.write("#BSUB -q long\n")
 
-                    annotation = f" [{loc}:{ref}]>"
-                    annotation_end = "< "
+                        if "#BSUB -W" in line:
+                            out.write("#BSUB -W 249:59\n")
+                        
+                        elif "#BSUB -J" in line:
+                            job_line = f'{line.split("[")[0]}{self.unfinished_jobs(job_status)}\n'
+                            out.write(job_line)
 
-
-                    position = int(loc)+position_adjustment
-                    if ref != cur_sequence[position]:
-                        cur_sequence = cur_sequence[:position] + annotation + cur_sequence[position:position+1] + annotation_end + cur_sequence[position+1:]
-
-                        position_adjustment += len(annotation) + len(annotation_end)
-                    
-                print (cur_sequence)
-                
-            else:
-                pass
-        #exit()
-
+                        else:
+                            out.write(line)
+        
 
     def unfinished_jobs(self, jobs):
         
         leftover_jobs = jobs["index"].drop_duplicates().astype(str).str.split("_").str[-1].astype(int)
         
         job_arrays = lsf.build_job_array(leftover_jobs)
-        print (job_arrays)
         
         return job_arrays
     
@@ -423,20 +442,35 @@ class Status:
         
         summary.loc[summary["percent"] == 100, "Error"] = ""
         summary["Error"].fillna("Unknown", inplace=True)
-        
+
+        print (summary)
+        summary["Type"] = summary["Error"].map({
+            "TERM_MEMLIMIT: job killed after reaching LSF memory usage limit.": "Memory",
+            "MATLAB is exiting because of fatal error: Memory Error":"Memory",
+            "TERM_RUNLIMIT: job killed after reaching LSF run time limit.": "Time",
+            "Unknown":"Unknown"
+        })
+        print (summary)
+
+        error_types = summary[summary["percent"] == 0].groupby("Type")["index"].count().reset_index()
+
         if self.__show_incomplete:
             self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)])
         else:
             
             print (summary[summary["percent"] < 100])
-            error_types = summary[summary["percent"] == 0].groupby("Error")["index"].count().reset_index()
+            
 
-            for error_type in error_types["Error"]:
+            for error_type in error_types["Type"]:
                 print ("Error:", error_type)
-                self.unfinished_jobs(summary[(summary["percent"] < 100) & (summary["Error"] == error_type)])
+                print (self.unfinished_jobs(summary[(summary["percent"] < 100) & (summary["Type"] == error_type)]))
                 print (" ")
 
-
+        if self.write_script_status:
+            for error in error_types["Type"]:
+                self.create_scripts(summary[(summary["percent"] < 100) & (summary["Type"] == error)], error)
+        else:
+            pass
 
 
 
