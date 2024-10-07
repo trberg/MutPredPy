@@ -380,7 +380,7 @@ class Status:
             
             #print ("after summary")
             summary["hasError"].fillna(False, inplace=True)
-            summary.loc[summary["hasError"]==False, "Error"] = ""
+            summary.loc[summary["percent"] == 100, "Error"] = ""
             summary["Error"].fillna("Unknown", inplace=True)
 
             summary = summary.sort_values("index")
@@ -417,7 +417,7 @@ class Status:
         if self.__show_incomplete:
             self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)])
         else:
-            print (summary[summary["percent"] == 0])
+            print (summary[summary["percent"] < 100])
             error_types = summary[summary["percent"] == 0].groupby("Error")["index"].count().reset_index()
 
             for error_type in error_types["Error"]:
