@@ -355,7 +355,7 @@ class Status:
                         if "#BSUB -q" in line:
                             out.write("#BSUB -q long\n")
 
-                        if "#BSUB -W" in line:
+                        elif "#BSUB -W" in line:
                             out.write("#BSUB -W 249:59\n")
                         
                         elif "#BSUB -J" in line:
@@ -443,14 +443,13 @@ class Status:
         summary.loc[summary["percent"] == 100, "Error"] = ""
         summary["Error"].fillna("Unknown", inplace=True)
 
-        print (summary)
         summary["Type"] = summary["Error"].map({
             "TERM_MEMLIMIT: job killed after reaching LSF memory usage limit.": "Memory",
             "MATLAB is exiting because of fatal error: Memory Error":"Memory",
             "TERM_RUNLIMIT: job killed after reaching LSF run time limit.": "Time",
             "Unknown":"Unknown"
         })
-        print (summary)
+        
 
         error_types = summary[summary["percent"] == 0].groupby("Type")["index"].count().reset_index()
 
