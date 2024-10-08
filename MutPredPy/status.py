@@ -454,15 +454,13 @@ class Status:
         error_types = summary[summary["percent"] == 0].groupby("Type")["index"].count().reset_index()
 
         if self.__show_incomplete:
-            self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)])
+            print (self.unfinished_jobs(summary[(summary["percent"] > 0) & (summary["percent"] < 100)]))
         else:
             
-            print (summary[summary["percent"] < 100])
-            
+            #print (summary[summary["percent"] < 100])
 
             for error_type in error_types["Type"]:
                 print ("Error:", error_type)
-                print (summary)
                 print (self.unfinished_jobs(summary[(summary["percent"] < 100) & (summary["Type"] == error_type)]))
                 print (" ")
         
