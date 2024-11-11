@@ -26,24 +26,20 @@ class Merge:
 
 
     def mutpred_scores(self):
-
-
-        scores = pd.concat([pd.read_csv(f"{m}/output.txt") for m in os.listdir(self.job_dir) if os.path.exists()])
-        #engine = u.get_sql_engine(config_file=self.config_file, config_name=self.config_name)
-        print (scores)
-        exit()
-        #scores = pd.read_sql("SELECT * FROM mutations", con=engine)
-        #if self.assembly == "hg19":
-        #    scores = pd.read_csv("../NYCKidSeqVUS/hg19.missense_output_2.txt", sep=",")
-        #elif self.assembly == "hg38":
-        #    scores = pd.read_csv("../NYCKidSeqVUS/hg38.missense_output_1.txt", sep=",")
-        #scores["Ensembl_proteinid_v"] = scores["ID"].str.split("|").str[0]
-        #scores["mutation"] = scores["Substitution"]
+        
+        scores = pd.concat([pd.read_csv(f"{self.job_dir}/{m}/output.txt") for m in os.listdir(self.job_dir) if os.path.exists(f"{self.job_dir}/{m}/output.txt")])
+        
+        scores = scores.drop_duplicates()
 
         return scores
 
 
-    def merge(self, input, output):
+    def merge(self):
+
+        self.write_output(self.scored, self.output)
+
+
+    def merge_to_input(self, input, output):
 
         input_data = pd.read_csv(input, sep="\t", skiprows=[i for i,line in enumerate(open(input)) if line.startswith("##")])
         input_data[["protein_id","mutations"]] = input_data["Extra"].apply(lambda x: u.collect_value(x, "HGVSp")).str.split(":", expand=True)

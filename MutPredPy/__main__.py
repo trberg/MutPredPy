@@ -209,7 +209,7 @@ def build_parser():
             help="Combine the output scored mutations from MutPred into a single file."
         )
     parser_mutpredMerge.add_argument(
-                "--input", type=str, nargs='?',
+                "--input", type=str, nargs='?', default="", required=False,
                 help='Path to the original input file'
             )
     parser_mutpredMerge.add_argument(
@@ -221,7 +221,7 @@ def build_parser():
                 help='Path to the directory containing the MutPred2 jobs.'
             )
     parser_mutpredMerge.add_argument(
-                "--database", type=str, nargs='?', default="None",
+                "--database", type=str, nargs='?', default="None", required=False,
                 help="Path to option config.yaml file for linking to mysql database. Include the name of the configuration in the config.yaml file after an @ symbol (ex. /path/to/file@Remote). If no config name included, program will default to 'Local'."
             )
     parser_mutpredMerge.add_argument(
