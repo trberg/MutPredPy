@@ -96,7 +96,11 @@ def clean_FASTA_sequence(sequence):
 
 def mutation_mapping(x):
     #print (x)
-    loc = re.findall(r'\d+', x)[0]
+    try:
+        loc = re.findall(r'\d+', x)[0]
+    except TypeError:
+        print (x)
+        exit()
 
     ref, alt = x.replace(str(loc),"|").split("|")
     
@@ -188,6 +192,7 @@ def filter_non_missense(data, file_format, annotation):
     elif file_format == "VEP":
 
         data = data[data["Consequence"].str.contains("missense_variant")]
+        data = data[~data["hgvsp"].str.contains("delins")]
 
         return data
     

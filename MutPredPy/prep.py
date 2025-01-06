@@ -620,6 +620,10 @@ class MutPredpy:
                 else:
                     pass
         else:
+            
+            memory.append(row["Memory Estimate (MB)"])
+            number += row[variable]
+
             job_information.append({
                 "File": file_number,
                 "Time Estimate": number,
@@ -653,10 +657,17 @@ class MutPredpy:
         if hgvsp_status:
             
             self.variant_data = self.filter_canonical(self.variant_data)
+
+            self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
+
+            print (self.variant_data[["Location","Allele","Consequence","Amino_acids","hgvsp"]])
+            
+            #print (self.variant_data.columns)
+            #exit()
             
             self.variant_data = fasta.collect_mutations(self.variant_data, self.file_format)
 
-            self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
+            
 
             print (f"Pre filtered variants: {self.count_mutations(self.variant_data)}")
             
