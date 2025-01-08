@@ -172,10 +172,10 @@ def config_template():
 module load MCR/R2017b;
 
 /sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev \
--i $working_dir/$index/input.faa \
--o $working_dir/$index/output.txt \
+-i $working_dir/jobs/$index/input.faa \
+-o $working_dir/jobs/$index/output.txt \
 -d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/ \
--p 1 -c 1 -b 0 -t 1 -f 2 \
+-p 1 -c 1 -b 0 -t 1 -f 4 \
 
 """)
 
