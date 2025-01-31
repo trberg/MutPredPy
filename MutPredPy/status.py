@@ -23,7 +23,7 @@ class Status:
 
 
         ## Keyword   Term_reason  Integer_logged
-        self.__log_messages = pd.read_csv(os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/LSF_errors.csv")))
+        #self.__log_messages = pd.read_csv(os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/LSF_errors.csv")))
         
         if summary == "":
             self.__summary = False
