@@ -20,13 +20,13 @@ class Merge:
 
     def mutpred_scores(self):
         
-        if self.mechanism:
+        if self.mechanisms:
             included_columns = ['ID','Substitution','MutPred2 score','Molecular mechanisms with Pr >= 0.01 and P < 1.00','Motif information','Remarks']
 
         else:
             included_columns = ['ID','Substitution','MutPred2 score']
         
-
+        print ("MERGE")
         scores = pd.concat([pd.read_csv(f"{self.job_dir}/{m}/output.txt", usecols=included_columns) for m in os.listdir(self.job_dir) if os.path.exists(f"{self.job_dir}/{m}/output.txt")])
         
         scores = scores.drop_duplicates()
