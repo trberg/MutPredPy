@@ -5,19 +5,12 @@ import os
 
 
 class Merge:
-    def __init__(self, input, output, job_dir, database, assembly, dry_run):
+    def __init__(self, output, job_dir, mechanisms, dry_run):
         
-        if "@" in database:
-            self.config_file, self.config_name = database.split("@")
-        else:
-            self.config_file = database
-            self.config_name = "Local"
-        
-        self.input = input
         self.output = output
         self.job_dir = job_dir
+        self.mechanisms = mechanisms
         self.dry_run = dry_run
-        self.assembly = assembly
         self.scored = self.mutpred_scores()
 
 
@@ -27,7 +20,14 @@ class Merge:
 
     def mutpred_scores(self):
         
-        scores = pd.concat([pd.read_csv(f"{self.job_dir}/{m}/output.txt") for m in os.listdir(self.job_dir) if os.path.exists(f"{self.job_dir}/{m}/output.txt")])
+        if self.mechanism:
+            included_columns = ['ID','Substitution','MutPred2 score','Molecular mechanisms with Pr >= 0.01 and P < 1.00','Motif information','Remarks']
+
+        else:
+            included_columns = ['ID','Substitution','MutPred2 score']
+        
+
+        scores = pd.concat([pd.read_csv(f"{self.job_dir}/{m}/output.txt", usecols=included_columns) for m in os.listdir(self.job_dir) if os.path.exists(f"{self.job_dir}/{m}/output.txt")])
         
         scores = scores.drop_duplicates()
 
@@ -37,32 +37,3 @@ class Merge:
     def merge(self):
 
         self.write_output(self.scored, self.output)
-
-
-    def merge_to_input(self, input, output):
-
-        input_data = pd.read_csv(input, sep="\t", skiprows=[i for i,line in enumerate(open(input)) if line.startswith("##")])
-        input_data[["protein_id","mutations"]] = input_data["Extra"].apply(lambda x: u.collect_value(x, "HGVSp")).str.split(":", expand=True)
-        
-        if self.assembly == "hg38":
-            fasta_data = fasta.collect_fasta("resources/Homo_sapiens.GRCh38.combined.pep.all.fa")[["Ensembl_proteinid_v","sequence"]]
-        elif self.assembly == "hg19":
-            fasta_data = fasta.collect_fasta("resources/Homo_sapiens.GRCh37.combined.pep.all.fa")[["Ensembl_proteinid_v","sequence"]]
-        else:
-            print ("Assembly not recognized, defaulting to hg38.")
-        
-        
-        fasta_data = fasta_data.drop_duplicates(subset="Ensembl_proteinid_v", keep="first")
-        
-        scores = self.scored
-        
-        input_data = input_data.merge(fasta_data, left_on="protein_id", right_on="Ensembl_proteinid_v", how="left")
-        input_data["seq_hash"] = input_data["sequence"].apply(lambda x: u.get_seq_hash(x) if not pd.isna(x) else x)
-        input_data["mutation"] = input_data["mutations"].apply(lambda x: fasta.mutation_mapping(x.split(".")[1]) if not pd.isna(x) else x)
-        #input_data = input_data.merge(scores, on=["seq_hash","mutation"], how="left")
-        input_data = input_data.merge(scores, on=["Ensembl_proteinid_v","mutation"], how="left")
-        input_data = input_data[["#Uploaded_variation","Location","Allele","Gene","Feature","protein_id","mutations","MutPred2 score","Molecular mechanisms with Pr >= 0.01 and P < 1.00","Motif information","Remarks"]]
-
-        print (input_data)
-
-        self.write_output(input_data, output)
