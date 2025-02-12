@@ -1,0 +1,19 @@
+========== Normal Jobs ==========
+    Jobs            $nj
+    Memory Usage    $nmu Gb
+    Time            $nt Hrs
+
+========== Middle Jobs ==========
+    Jobs            $mj
+    Memory Usage    $mmu Gb
+    Time            $mt Hrs
+                    
+========== High Memory Jobs ==========
+    Jobs            $hj
+    Memory Usage    $hmu Gb
+    Time            $ht Hrs
+                    
+========== Total Usage ==========
+    Total Jobs      $tj
+    Memory Usage    $tmu Gb
+    Time            $tt Hrs
