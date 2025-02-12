@@ -47,8 +47,11 @@ class AminoAcidMap:
     
 
     @staticmethod
-    def mutation_mapping(x):
-        """Automatically detect and convert a mutation string between single-letter and three-letter amino acid notation.
+    def mutation_mapping(x, direction="auto"):
+        """
+        If direction=auto, Automatically detect and convert a mutation string between single-letter and three-letter amino acid notation.
+        if direction=singlet, converts a mutation string to single-letter amino acid notation
+        if direction==triplet, converts a mutation string to three-letter amino acid notation
 
         Args:
             x (str): Mutation string (e.g., "A123T" or "Ala123Thr").
@@ -57,7 +60,7 @@ class AminoAcidMap:
             str: Mutation in the opposite notation format.
         """
         try:
-            mut = x #.replace("%3D","=")
+            mut = x
             loc = re.search(r'\d+', mut).group()  # Extract numeric position
             ref, alt = mut.split(loc)  # Split reference and alternate residues
 
