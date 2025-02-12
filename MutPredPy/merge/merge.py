@@ -1,5 +1,5 @@
-from . import utils as u
-from . import fasta
+from ..utils import utils as u
+from ..fasta import fasta
 import pandas as pd
 import os
 

@@ -6,8 +6,8 @@ from pkg_resources import Requirement, resource_filename
 import re
 import os
 
-from . import fasta
-from . import lsf
+from ..fasta import fasta
+from ..computing import lsf
 
 
 class Status:
@@ -370,7 +370,7 @@ class Status:
         
         leftover_jobs = jobs["index"].drop_duplicates().astype(str).str.split("_").str[-1].astype(int)
         
-        job_arrays = lsf.build_job_array(leftover_jobs)
+        job_arrays = computing.build_job_array(leftover_jobs)
         
         return job_arrays
     

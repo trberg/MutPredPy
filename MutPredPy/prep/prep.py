@@ -1,54 +1,36 @@
 import pandas as pd
 import argparse
 import numpy as np
-from pkg_resources import Requirement, resource_filename
 
 import os
 import re
 import hashlib
 
-from . import fasta
-from . import lsf
-from . import sql_connection
-from . import utils as u
+from ..fasta import fasta
+from ..computing import lsf
+from ..utils import utils as u
 
-class MutPredpy:
-    def __init__(self, input, working_dir, time, dry_run, canonical, database, all_possible, fasta_path):
+from .input_processing import process_input
+
+
+class Prepare:
+    def __init__(self, input, working_dir, time, dry_run, canonical, all_possible):
         
-
 
         self.__working_dir = working_dir
         self.__input = input
         self.__base = input.split("/")[-1].split(".")[0]
         self.__time = time
         
-        self.dry_run   = dry_run
+        self.dry_run      = dry_run
+        self.all_possible = all_possible
 
         self.__fasta_file_number_start = self.set_fasta_file_number_start()
         
         self.canonical = canonical
 
-        if "@" in database:
-            self.database = database.split("@")[0]
-            self.db_config_name = database.split("@")[1]
-        else:
-            self.database = database
-            self.db_config_name = "Local"
-        
-        #self.__fasta_location = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/Homo_sapiens.GRCh38.combined.pep.all.fa"))
-        self.__fasta_location = os.path.abspath(fasta_path)
-        #print (self.__fasta_location)
-
-        self.fasta = fasta.collect_fasta(self.__fasta_location)
-        #print (self.fasta)
-
         if self.__input != "":
             self.__header_data, self.__input_data = self.read_input_data(self.get_input_path())
-        
-            self.file_format = self.input_format()
-        
-            self.annotation = self.get_annotation()
-        
 
 
     def get_input_path(self):
@@ -76,7 +58,6 @@ class MutPredpy:
     def get_input_headers(self):
         return self.__header_data
     
-    
     def get_working_dir(self):
         
         if not os.path.exists(self.__working_dir):
@@ -98,57 +79,6 @@ class MutPredpy:
     
     def get_time(self):
         return self.__time
-    
-    def get_database_status(self):
-        if self.database == "None":
-            return False
-        else:
-            return True
-        
-    def get_database_connection(self):
-        
-        engine = u.get_sql_engine(config_name=self.db_config_name, config_file=self.database)
-
-        print ("database")
-
-        return engine
-    
-    
-    def get_annotation(self):
-        if self.file_format == "VCF-info":
-            if "SnpEff" in self.header_data:
-                self.__annotation = "SnpEff"
-            elif "ENSEMBL VARIANT EFFECT PREDICTOR" in self.header_data:
-                self.__annotation = "VEP"
-            else:
-                self.__annotation = False
-
-        elif self.file_format == "dbNSFP":
-            self.__annotation = "dbNSFP"
-
-        else:
-            self.__annotation = False
-        
-        return self.__annotation
-    
-
-
-    def input_format(self):
-        cols = set(self.get_input().columns)
-        if len(set(["#chr","pos(1-based)","ref","alt","aaref","aaalt","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"]).intersection(cols)) == 9:
-            file_format = "dbNSFP"
-        elif len(set(["Location","Allele","Consequence","Protein_position","Amino_acids","Extra"]).intersection(cols)) == 6:
-            file_format = "VEP"
-        elif len(set(["#CHROM","POS","REF","ALT","INFO"]).intersection(cols)) == 5:
-            file_format = "VCF-info"
-        elif len(set(["#CHROM","POS","REF","ALT"]).intersection(cols)) == 4:
-            file_format = "VCF"
-        else:
-            file_format = "Custom"
-
-        print (f"{file_format} file format")
-        return file_format
-
 
     def read_input_data(self, input_path):
         
@@ -209,108 +139,6 @@ class MutPredpy:
         return logs
 
 
-    def hgvsp(self, data):
-
-        input_cols = set(data.columns)
-        possibilites = set(["hgvsp", "HGVSp", "HGVSP"])
-        inter = list(input_cols.intersection(possibilites))
-
-        if "hgvsp" in input_cols:
-            return data, True
-        
-        elif len(inter) == 1:
-            data = data.rename(columns={inter[0]:"hgvsp"})
-            return data, True
-        
-        elif "Extra" in input_cols and self.file_format=="VEP":
-            
-            try:
-                data["hgvsp"] = data["Extra"].apply(lambda x: u.collect_value(x, val="HGVSp"))
-                return data, True
-            except KeyError:
-                return data, False
-            
-        elif self.file_format == "dbNSFP":
-            
-            try:
-                data["Ensembl_proteinid"] = data["Ensembl_proteinid"].str.split(";")
-            except KeyError:
-                print ("No Ensembl_proteinid column found")
-                return data, False
-            
-            try:
-                data["aapos"] = data["aapos"].astype(str)
-                data["aapos"] = data["aapos"].str.split(";")
-            except KeyError:
-                print ("No aapos column found")
-                return data, False
-            
-            try:
-                data["HGVSp_VEP"] = data["HGVSp_VEP"].str.split(";")
-            except KeyError:
-                print ("No HGVSp_VEP column found")
-                return data, False
-            
-            try:
-                data["HGVSp_ANNOVAR"] = data["HGVSp_ANNOVAR"].str.split(";")
-            except KeyError:
-                print ("No HGVSp_ANNOVAR column found")
-                return data, False
-            
-            try:
-                data["VEP_canonical"] = data["VEP_canonical"].str.split(";")
-            except KeyError:
-                print ("No VEP_canonical column found")
-                return data, False
-            
-            data = data[["#chr","pos(1-based)","ref","alt","aaref","aaalt","aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"]]
-            #print (data)
-            data = data.explode(["aapos","Ensembl_proteinid","HGVSp_VEP","HGVSp_ANNOVAR","VEP_canonical"])
-
-            data["hgvsp"] = data.apply(lambda row: fasta.collect_dbNSFP_hgvsp(row["Ensembl_proteinid"], fasta.collect_dbNSFP_mutations(row)), axis=1)
-
-            #print (data)
-            #exit()
-            
-            return data, True
-        
-        elif self.file_format == "VCF-info" and self.annotation == "SnpEff":
-            
-            columns = []
-            for line in self.get_input_headers().split("\n"):
-                if "ID=ANN" in line:
-                    columns = line.split("'")[1].split(" | ")
-
-            if len(columns) > 0:
-                data["INFO"] = data["INFO"].apply(lambda x: u.collect_value(x, val="ANN")).str.split(",")
-                data = data.explode("INFO")
-                data[columns] = data["INFO"].str.split("|", expand=True)
-                data = data[["#CHROM","POS","ID","REF","ALT","Annotation","Gene_Name","Gene_ID","Feature_Type","Feature_ID",'Transcript_BioType','HGVS.p']]
-                
-                transcript_to_protein_map = fasta.collect_fasta(self.__fasta_location, primary="Ensembl_transcriptid")[["Ensembl_transcriptid", "Ensembl_proteinid_v"]]
-                
-                data = data.merge(transcript_to_protein_map, left_on="Feature_ID", right_on="Ensembl_transcriptid", how="left")
-
-                data["hgvsp"] = data["Ensembl_proteinid_v"] + ":" + data["HGVS.p"]
-                
-                return data, True
-            
-        else:
-            return data, False
-        
-
-    
-    def filter_canonical(self, data):
-
-        if self.canonical and self.file_format == "VEP":
-            data["CANONICAL"] = data["Extra"].apply(lambda x: u.collect_value(x, val="CANONICAL"))
-            data = data[data["CANONICAL"]=="YES"]
-
-            return data
-        
-        return data
-
-
     def cur_max_sequence_version(self, data):
 
         data["version"] = data["Ensembl_transcriptid"].str.split(".").str[-1]
@@ -362,49 +190,75 @@ class MutPredpy:
         return alts
         
 
+    def map_unversioned_sequences(self, FF, data, col_mapping):
 
-    def add_sequences(self, data):
+        FF[[f"unversioned_{col_mapping['id_column']}","version"]] = FF[col_mapping['id_column']].str.split(".", expand=True)
 
-        if self.file_format == "dbNSFP":
-            #print (len(set(data["Ensembl_proteinid"])))
-            FF = self.fasta
-            
-            aligning = data.merge(FF, on="Ensembl_proteinid", how="left")
-            
-            aligning["alignment_score"] = aligning.apply(fasta.alignment_score, axis=1)
+        aligning = data.merge(FF, left_on=col_mapping.get("id_column"), right_on=f"unversioned_{col_mapping['id_column']}", how="left")
 
-            aligning = self.max_sequence_version(fasta=self.fasta, data=aligning)
+        aligning["alignment_score"] = aligning.apply(lambda row: fasta.alignment_score(row, col_mapping), axis=1)
 
-            alignment    = aligning[aligning["alignment_score"] == 1]
+        aligning = self.max_sequence_version(fasta=self.fasta, data=aligning)
 
-            non_aligning = aligning[(aligning["alignment_score"]<1) & (~aligning["Ensembl_proteinid"].isin(alignment["Ensembl_proteinid"]))]
+        alignment    = aligning[aligning["alignment_score"] == 1]
 
-            new_aligned = self.alt_sequences(non_aligning)
+        non_aligning = aligning[(aligning["alignment_score"]<1) & (~aligning["Ensembl_proteinid"].isin(alignment["Ensembl_proteinid"]))]
 
-            data = pd.concat([alignment,new_aligned])
-            
-            aligned = data[(data["alignment_score"] == 1)].drop("latest_version", axis=1)
+        new_aligned = self.alt_sequences(non_aligning)
 
-            aligned = self.cur_max_sequence_version(data=aligned)
-
-            data = aligned[aligned["version"]==aligned["latest_version"]]
-            #print (data)
-        else:
-
-            self.fasta["Ensembl_proteinid"] = self.fasta["Ensembl_proteinid_v"]
-            self.fasta.drop(["Ensembl_proteinid_v", "version"], inplace=True, axis=1)
-            data = data.merge(self.fasta, on="Ensembl_proteinid", how="left")
+        data = pd.concat([alignment,new_aligned])
         
-        #exit()
+        aligned = data[(data["alignment_score"] == 1)].drop("latest_version", axis=1)
+
+        aligned = self.cur_max_sequence_version(data=aligned)
+
+        data = aligned[aligned["version"]==aligned["latest_version"]]
+
+
+
+    def add_sequences(self, data, col_mapping, versioned=True):
+        
+        if col_mapping["id_column"] in ["ENSP","ENST","ENSG"]:
+            
+            FF_grch37 = fasta.collect_ensembl_fasta(primary=col_mapping["id_column"], assembly="GRCh37")
+            FF_grch38 = fasta.collect_ensembl_fasta(primary=col_mapping["id_column"], assembly="GRCh38")
+            
+            if versioned:
+                
+                data_grch37 = data.merge(FF_grch37, on=col_mapping.get("id_column"), how="left")
+                unmapped_grch37 = len(data_grch37[data_grch37["sequence"].isna()])
+
+                data_grch38 = data.merge(FF_grch38, on=col_mapping.get("id_column"), how="left")
+                unmapped_grch38 = len(data_grch38[data_grch38["sequence"].isna()])
+
+            else:
+
+                data_grch37 = self.map_unversioned_sequences(FF_grch37, data, col_mapping)
+                unmapped_grch37 = len(data_grch37[data_grch37["sequence"].isna()])
+
+                data_grch38 = self.map_unversioned_sequences(FF_grch38, data, col_mapping)
+                unmapped_grch38 = len(data_grch38[data_grch38["sequence"].isna()])
+
+            # Return the sequence mapped dataframe with the least number of unmapped IDs            
+            data = data_grch38 if unmapped_grch38 <= unmapped_grch37 else data_grch37
+
+        else:
+            raise ValueError(f"Unable to map data type: {col_mapping['id_column']} to a FASTA sequence")
+        
+        data = data.filter(items=[col_mapping['id_column'], col_mapping['mutation_column'], "sequence", "Memory Estimate (MB)", "Time per Mutation (hrs)"])
+        
         return data
     
 
 
-    def groupby_protein_id(self, data):
+    def groupby_id(self, data, col_mapping):
+        
+        id_col = col_mapping["id_column"]
+        muts   = col_mapping["mutation_column"]
 
-        data = data[["Ensembl_proteinid","mutation"]].drop_duplicates()
-        data = data.groupby(["Ensembl_proteinid"])["mutation"].apply(' '.join).reset_index()
-        data["num_mutations"] = data["mutation"].str.split(" ").apply(lambda x: len(x))
+        data = data[[id_col,muts]].drop_duplicates()
+        data = data.groupby([id_col])[muts].apply(' '.join).reset_index()
+        data[f"num_{muts}"] = data[muts].str.split(" ").apply(lambda x: len(x))
         
         return data
     
@@ -507,6 +361,7 @@ class MutPredpy:
 
 
     def clean_splits(self, row):
+
         row["num_mutations"] = len(row["mutation"].split(" "))
         row["Time Estimate (hrs)"] = row["Time per Mutation (hrs)"]*row["num_mutations"]
         
@@ -652,82 +507,67 @@ class MutPredpy:
 
         input_data = self.get_input()
         
-        self.variant_data, hgvsp_status = self.hgvsp(input_data)
+        self.variant_data, col_mapping = process_input(input_data, canonical=self.canonical, all_possible=self.all_possible)
+            
+        self.variant_data = self.groupby_id(self.variant_data, col_mapping)
+
+        self.variant_data = self.add_sequences(self.variant_data, col_mapping)
         
-        if hgvsp_status:
-            
-            self.variant_data = self.filter_canonical(self.variant_data)
+        #self.variant_data = self.filtered_scored(self.variant_data)
+        
+        self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: len(row[col_mapping["mutation_column"]].split(" "))*row["Time per Mutation (hrs)"], axis=1)
 
-            self.variant_data = fasta.filter_non_missense(self.variant_data, self.file_format, self.annotation)
+        self.variant_data = fasta.check_sequences(self.variant_data, col_mapping)
 
-            print (self.variant_data[["Location","Allele","Consequence","Amino_acids","hgvsp"]])
-            
-            #print (self.variant_data.columns)
+        print (self.variant_data)
+        exit()
+
+        ## Check if any sequences are invalid
+        not_passed = self.variant_data[self.variant_data["status"]==False]
+        if len(not_passed) > 0:
+            print (f"{len(not_passed)} proteins failed quality check")
+            #print (not_passed)
             #exit()
-            
-            self.variant_data = fasta.collect_mutations(self.variant_data, self.file_format)
+            self.variant_data = self.variant_data[self.variant_data["status"]]
 
-            
-
-            print (f"Pre filtered variants: {self.count_mutations(self.variant_data)}")
-            
-            self.variant_data = self.groupby_protein_id(self.variant_data)
-
-            self.variant_data = self.add_sequences(self.variant_data)
-            #print (self.variant_data)
-
-            self.variant_data = self.filtered_scored(self.variant_data)
-            
-            self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: row["num_mutations"]*row["Time per Mutation (hrs)"], axis=1)
-
-            self.variant_data = fasta.sequence_quality_check(self.variant_data)
-
-            ## Check if any sequences are invalid
-            not_passed = self.variant_data[self.variant_data["status"]==False]
-            if len(not_passed) > 0:
-                print (f"{len(not_passed)} proteins failed quality check")
-                #print (not_passed)
-                #exit()
-                self.variant_data = self.variant_data[self.variant_data["status"]]
-
-            ## Check if any of the proteins are unmapped
-            unmapped = self.variant_data[pd.isna(self.variant_data["sequence"])]
-            if len(unmapped) > 0:
-                print ("======= UNMAPPED PROTEINS ======")
-                print (unmapped)
-                exit()
-            
-            #print (self.variant_data.sort_values("Time Estimate (hrs)"))
-            #print (self.variant_data)
-
-            #self.summary(self.variant_data)
-            #print (self.variant_data)
-
-            print (f"Post filtered variants: {self.count_mutations(self.variant_data)}")
-
-            abs_working_dir = os.path.abspath(self.get_working_dir())
-
-            ## This is necessary to initiate the logs folder for the LSF script.
-            logs = self.get_log_folder()
-
-            tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
-            
-            user = 1
-            if user == 1:
-                per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=1)
-
-                for user in range(len(per_user_tech_requirements)):
-                    lsf.usage_report(per_user_tech_requirements[user])
-
-                    lsf.build_lsf_config_file(per_user_tech_requirements[user], abs_working_dir, self.get_base(), user, self.dry_run)
-            else:
-                lsf.usage_report(tech_requirements)
-
-                lsf.build_lsf_config_file(tech_requirements, abs_working_dir, self.get_base(), user, self.dry_run)
-
-        else:
-            print (f"HGVSp key not found in input columns -> [{','.join(self.variant_data.columns)}]")
+        ## Check if any of the proteins are unmapped
+        unmapped = self.variant_data[pd.isna(self.variant_data["sequence"])]
+        if len(unmapped) > 0:
+            print ("======= UNMAPPED PROTEINS ======")
+            print (unmapped)
             exit()
+        
+        #print (self.variant_data.sort_values("Time Estimate (hrs)"))
+        #print (self.variant_data)
+
+        #self.summary(self.variant_data)
+        #print (self.variant_data)
+
+        print (f"Post filtered variants: {self.count_mutations(self.variant_data)}")
+
+        abs_working_dir = os.path.abspath(self.get_working_dir())
+
+        ## This is necessary to initiate the logs folder for the LSF script.
+        logs = self.get_log_folder()
+
+        tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
+        
+        user = 1
+        if user == 1:
+            per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=1)
+
+            for user in range(len(per_user_tech_requirements)):
+                lsf.usage_report(per_user_tech_requirements[user])
+
+                lsf.build_lsf_config_file(per_user_tech_requirements[user], abs_working_dir, self.get_base(), user, self.dry_run)
+        else:
+            lsf.usage_report(tech_requirements)
+
+            lsf.build_lsf_config_file(tech_requirements, abs_working_dir, self.get_base(), user, self.dry_run)
+
+        #else:
+        #    print (f"HGVSp key not found in input columns -> [{','.join(self.variant_data.columns)}]")
+        #    exit()
 
 
 

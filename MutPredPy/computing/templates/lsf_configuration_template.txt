@@ -1,0 +1,14 @@
+#BSUB -P acc_pejaverlab
+#BSUB -n 4
+#BSUB -R span[hosts=1]
+#BSUB -R rusage[mem=$mem]
+#BSUB -W $time
+#BSUB -q premium
+#BSUB -J $job$job_array
+#BSUB -cwd /sc/arion/projects/pejaverlab/lab_software/MutPredPy/tools/mutpred2.0
+#BSUB -oo $working_dir/logs/$base.%J.job_%I.out
+#BSUB -e $working_dir/logs/$base.%J.job_%I.err
+
+module load MCR/R2017b;
+
+/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev -i $working_dir/jobs/$index/input.faa -o $working_dir/jobs/$index/output.txt -d /sc/arion/projects/pejaverlab/IGVF/data/mutpred2.0/ -p 1 -c 1 -b 0 -t 1 -f 4

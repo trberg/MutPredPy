@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mutpredpy"
+authors = [
+  { name="Timothy Bergquist", email="timothy.bergquist@mssm.edu" },
+]
+description = "A tool to manage running the MutPred2 pathogenicity prediction tool on high performance computing systems."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENCSE" }
+dynamic = ["dependencies","version"]
+
+[project.urls]
+Homepage = "https://github.com/trberg/MutPredPy/"
+Issues = "https://github.com/trberg/MutPredPy/issues"
+
+[project.scripts]
+mutpredpy = " mutpredpy.__main__:main"
+
+
+[tool.setuptools]
+packages = ["mutpredpy"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+version = {attr = "mutpredpy.__version__"}
+
+[tool.setuptools.package-data]
+"mutpredpy" = ["resources/sequence_time.npy","resources/memory_usage.npy","resources/Homo_sapiens.GRCh38.combined.pep.all.fa","resources/Homo_sapiens.GRCh37.combined.pep.all.fa"]
