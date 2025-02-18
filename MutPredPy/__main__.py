@@ -3,7 +3,6 @@ from typing import Optional
 from .prep import prep
 from .status import status
 from .merge import merge
-#from .remainder import remainder
 
 app = typer.Typer()
 
@@ -21,7 +20,10 @@ def prepare(
     time: int = typer.Option(24, callback=time_minimum, help="Target time in hours"),
     dry_run: bool = typer.Option(False, help="Perform a dry run without writing files"),
     canonical: bool = typer.Option(False, help="Only prepare canonical isoforms"),
-    all_possible: bool = typer.Option(False, help="Prepare all possible amino acid substitutions")
+    all_possible: bool = typer.Option(False, help="Prepare all possible amino acid substitutions"),
+    verbose: bool = typer.Option(False, help="Print additional debugging and status information during the preparation"),
+    users: int = typer.Option(1, help="Designates how many users will be running the MutPred2 scripts to better parallelize the jobs."),
+    fasta: str = typer.Option("", help="Pathway to a FASTA file from which to map the proteins/transcripts from the input file")
 ):
     """Prepare MutPred input files."""
     prep.Prepare(
@@ -31,9 +33,14 @@ def prepare(
         dry_run=dry_run,
         canonical=canonical,
         all_possible=all_possible,
+        verbose=verbose,
+        users=users,
+        fasta=fasta
     ).prepare_mutpred_input()
 
 ## STATUS
+## TODO: change input to working directory so that job_dir, logs, and scripts don't have to be designated
+
 @app.command()
 def status(
     job_dir: str = typer.Option(..., help="Path to the MutPred2 jobs directory"),
@@ -53,24 +60,6 @@ def status(
         script=script,
     ).mutpred_summary()
 
-## DEBUG
-@app.command()
-def debug(
-    job_dir: str = typer.Option(..., help="Path to the MutPred2 jobs directory"),
-    summary: Optional[str] = typer.Option(None, help="Path to a pre-generated summary file"),
-    all: bool = typer.Option(False, help="Show all job statuses"),
-    show_incomplete: bool = typer.Option(False, help="Show all incomplete jobs"),
-    logs: str = typer.Option("", help="Path to job logs"),
-):
-    """Debug a given MutPred job."""
-    status.Status(
-        job_dir=job_dir,
-        summary=summary,
-        all=all,
-        show_incomplete=show_incomplete,
-        logs=logs,
-    ).mutpred_debugging()
-
 ## MERGE
 @app.command()
 def merge(
@@ -86,19 +75,6 @@ def merge(
         dry_run=dry_run,
         mechanisms=mechanisms,
     ).merge()
-
-#@app.command()
-#def remainder(
-#    working_dir: str = typer.Argument(..., help="Path to the working directory of MutPred2 project"),
-#    time: int = typer.Option(24, callback=time_minimum, help="Target time in hours"),
-#    dry_run: bool = typer.Option(False, help="Perform a dry run"),
-#):
-#    """Find the leftover unscored variants and create new jobs."""
-#    remainder.Remaining(
-#        working_dir=working_dir,
-#        time=time,
-#        dry_run=dry_run,
-#    ).split_and_build_lsf()
 
 #if __name__ == "__main__":
 def main():
