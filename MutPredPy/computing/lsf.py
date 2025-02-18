@@ -1,7 +1,12 @@
 
 from string import Template
 import os
+import numpy as np
+import logging
 import pandas as pd
+import importlib.resources as pkg_resources
+
+from ..utils import utils as u
 
 # ==========================
 # 🚀 GLOBAL CONFIGURATIONS
@@ -9,8 +14,7 @@ import pandas as pd
 MEMORY_CUSHION = 2000  # Additional memory buffer
 TIME_CUSHION = 6  # Additional time buffer (hours)
 CORES = 4  # Number of CPU cores
-TEMPLATES_DIR = "templates"  # Directory for storing templates
-
+logger = logging.getLogger()
 
 # ==========================
 # 📝 TEMPLATE LOADING
@@ -30,10 +34,13 @@ def load_template(template_name):
         IOError: If there is an issue reading the file.
         ValueError: If the template is empty.
     """
-    template_path = os.path.join(TEMPLATES_DIR, template_name)
+    template_dir = pkg_resources.files("mutpredpy").joinpath("computing/templates")
+    template_path = os.path.join(template_dir, template_name)
 
     if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Template file '{template_path}' not found in '{TEMPLATES_DIR}'.")
+        raise FileNotFoundError(f"Template file '{template_path}' not found in '{template_dir}'.")
+
+    
 
     try:
         with open(template_path, "r") as file:
@@ -74,6 +81,27 @@ def build_job_array(jobs):
     return f'[{",".join(f"{min(s)}-{max(s)}" if len(s) > 1 else str(s[0]) for s in sequences)}]'
 
 
+def memory_estimate_function():
+    """Load pre-trained memory usage model.
+
+    Returns:
+        np.poly1d: Polynomial function to estimate memory usage.
+    """
+    path = pkg_resources.files("mutpredpy").joinpath("pkg_resources/memory_usage.npy")
+    #path = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/memory_usage.npy"))
+    return np.poly1d(np.load(path))
+
+
+def time_estimate_function():
+    """Load pre-trained time estimate function.
+
+    Returns:
+        np.poly1d: Polynomial function to estimate runtime.
+    """
+    path = pkg_resources.files("mutpredpy").joinpath("pkg_resources/sequence_time.npy")
+    #path = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/sequence_time.npy"))
+    return np.poly1d(np.load(path))
+
 # ==========================
 # 📊 USAGE REPORT
 # ==========================
@@ -109,7 +137,7 @@ def usage_report(tech_requirements):
         "tj": len(normal_jobs) + len(high_memory) + len(mid_memory)
     })
 
-    print(report)
+    logger.info('\n%s\n', report)
 
 
 # ==========================
@@ -141,7 +169,8 @@ def split_for_multiple_users(tech_requirements, users):
 # ==========================
 # 🏗️ LSF CONFIG FILE GENERATION
 # ==========================
-def build_lsf_config_file(tech_requirements, working_dir, base, user, dry_run):
+def build_lsf_config_file(prepare, tech_requirements, user):
+
     """
     Generates LSF configuration files based on job requirements.
 
@@ -152,8 +181,7 @@ def build_lsf_config_file(tech_requirements, working_dir, base, user, dry_run):
         user (int): User index.
         dry_run (bool): If True, only prints the output instead of writing to files.
     """
-    user += 1  # Adjust user index
-
+    
     job_types = [("normal", "Normal Memory"), ("middle", "Middle Memory"), ("high", "High Memory")]
 
     for job_type, category in job_types:
@@ -165,28 +193,30 @@ def build_lsf_config_file(tech_requirements, working_dir, base, user, dry_run):
         config_content = load_template("lsf_configuration_template.txt").substitute({
             "mem": int((max(jobs["Memory Minimum"]) + MEMORY_CUSHION) / CORES),
             "time": f"{int(max(jobs['Time Estimate'])) + TIME_CUSHION}:00",
-            "job": f"{base}_variants",
+            "job": f"{prepare.get_base()}_variants",
             "job_array": build_job_array(jobs["File"]),
-            "working_dir": working_dir,
-            "base": base,
+            "jobs_dir": prepare.get_jobs_directory(),
+            "logs_dir": prepare.get_log_folder(),
+            "base": prepare.get_base(),
             "index": "$LSB_JOBINDEX"
         })
 
         # Ensure scripts directory exists
-        scripts_dir = os.path.join(working_dir, "scripts")
-        if not os.path.exists(scripts_dir):
-            if dry_run:
-                print(f"No 'scripts' folder in {working_dir}.")
-            else:
-                os.makedirs(scripts_dir)
+        scripts_dir = os.path.join(prepare.get_working_dir(), "scripts")
+        scripts_dir,prepare.logging_status["script_directory"] = u.create_directory(scripts_dir, prepare.dry_run, prepare.logging_status.get("script_directory"))
+        
 
         # Define output file name
-        output_file = os.path.join(scripts_dir, f"{base}_{user}_{job_type}.lsf")
+        output_file = os.path.join(scripts_dir, f"{prepare.get_base()}_{user}_{job_type}.lsf")
 
-        print(config_content)
-        print(f"Written to {output_file}")
+        logger.info('\n%s\n\n', config_content)
+        
 
         # Write to file if not in dry run mode
-        if not dry_run:
+        if prepare.dry_run:
+            logger.dry_run(f"LSF scripts would be written to {output_file}")
+        else:
+            logger.info(f"LSF scripts written to {output_file}")
             with open(output_file, "w") as file:
                 file.write(config_content)
+            

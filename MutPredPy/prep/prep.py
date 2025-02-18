@@ -5,25 +5,40 @@ import numpy as np
 import os
 import re
 import hashlib
+import logging
+logger = logging.getLogger()
 
 from ..fasta import fasta
 from ..computing import lsf
 from ..utils import utils as u
 
 from .input_processing import process_input
-
+from .jobs import split_data
 
 class Prepare:
-    def __init__(self, input, working_dir, time, dry_run, canonical, all_possible):
+    def __init__(self, input, working_dir, time, dry_run, canonical, all_possible, verbose, users, fasta):
         
+        u.set_logger_level(log_level = 20 if verbose else 25)
 
-        self.__working_dir = working_dir
-        self.__input = input
-        self.__base = input.split("/")[-1].split(".")[0]
-        self.__time = time
+        ## Track dry run file and directory creation for logging purposes
+        self.logging_status = {
+            "working_dir":      False,
+            "jobs_directory":   False,
+            "job_folder":       dict(),
+            "log_directory":    False,
+            "script_directory": False,
+            "input_faa_files":  dict()
+        }
+
+        self.__working_dir  = working_dir
+        self.__input        = input
+        self.__time         = time
+        self.__fasta        = fasta
         
-        self.dry_run      = dry_run
-        self.all_possible = all_possible
+        self.dry_run        = dry_run
+        self.all_possible   = all_possible
+        self.users          = users
+        
 
         self.__fasta_file_number_start = self.set_fasta_file_number_start()
         
@@ -31,7 +46,7 @@ class Prepare:
 
         if self.__input != "":
             self.__header_data, self.__input_data = self.read_input_data(self.get_input_path())
-
+        
 
     def get_input_path(self):
         
@@ -42,44 +57,22 @@ class Prepare:
             path = os.path.abspath(self.__input)
         
         else:
-            print (f"File input {self.__input} not found...trying {self.get_working_dir()}/{self.__input}")
+            logger.info(f"File input {self.__input} not found...trying {self.get_working_dir()}/{self.__input}")
             path = f"{self.get_working_dir()}/{self.__input}"
         
         if os.path.exists(path):
             return path
         else:
-            print (f"Input file {path} not found.")
-            exit()
-
+            raise FileNotFoundError(f"Input file {path} not found.")
+    
 
     def get_input(self):
         return self.__input_data
     
+
     def get_input_headers(self):
         return self.__header_data
     
-    def get_working_dir(self):
-        
-        if not os.path.exists(self.__working_dir):
-            
-            if self.dry_run:
-                print (f"(Dry Run) Create {self.__working_dir}")
-            else:
-                creating_directory = ""
-                for folder in self.__working_dir.split("/"):
-                    creating_directory += f"{folder}/"
-                    if not os.path.exists(creating_directory):
-                        os.mkdir(creating_directory)
-        
-        return os.path.abspath(self.__working_dir).rstrip("/")
-    
-
-    def get_base(self):
-        return self.__base
-    
-    def get_time(self):
-        return self.__time
-
     def read_input_data(self, input_path):
         
         header_rows = []
@@ -88,64 +81,75 @@ class Prepare:
             if line.startswith('##'):
                 header_rows.append(i)
                 header_info += line
-
+            else:
+                break
+        
         input_data = pd.read_csv(input_path, sep="\t", skiprows = header_rows)
 
         return header_info, input_data
     
 
+    def get_working_dir(self):
+        
+        working_dir, self.logging_status["working_dir"] = u.create_directory(self.__working_dir, dry_run=self.dry_run, logged_status=self.logging_status.get("working_dir"))
+        
+        return os.path.abspath(working_dir).rstrip("/")
+    
+
+    def get_base(self):
+        return self.__input.split("/")[-1].split(".")[0]
+    
+    def get_time(self):
+        return self.__time
+    
+
     def set_fasta_file_number_start(self):
 
-        working_dir = f"{self.get_working_dir()}"
+        jobs_dir = f"{self.get_jobs_directory()}"
 
-        if not os.path.exists(f"{working_dir}"):
+        def job_num(job):
+            if isinstance(job, int):
+                return int(job)
+            elif isinstance(job, str) and re.search(r"job_\d+",job):
+                return int(job.split("_")[-1])
+            elif isinstance(job, str) and re.search(r'\d+',job):
+                return int(re.search(r'\d+',job).group())
+            else:
+                return 0
+
+        if not os.path.exists(f"{jobs_dir}"):
             return 1
-        elif os.path.exists(f"{working_dir}") and len(os.listdir(f"{working_dir}"))>0:
-            return max([int(f) for f in os.listdir(f"{working_dir}")]) + 1
+        elif os.path.exists(f"{jobs_dir}") and len(os.listdir(f"{jobs_dir}"))>0:
+            return max([job_num(f) for f in os.listdir(f"{jobs_dir}")]) + 1
         else:
             return 1
     
 
+    def get_jobs_directory(self):
+
+        jobs_directory, self.logging_status["jobs_directory"] = u.create_directory(f"{self.get_working_dir()}/jobs", dry_run=self.dry_run, logged_status=self.logging_status.get("jobs_directory"))
+        return jobs_directory
+        
+
     def get_job_folder(self, number):
-        
-        jobs_directory = f"{self.get_working_dir()}/jobs/"
-        
-        if not os.path.exists(f"{jobs_directory}"):
-            if self.dry_run:
-                print (f"(Dry Run) {jobs_directory} created")
-            else:
-                os.mkdir(f"{jobs_directory}")
 
-
-        job_folder = f"{self.get_working_dir()}/jobs/{number}"
-        
-        if not os.path.exists(f"{job_folder}"):
-            if self.dry_run:
-                print (f"(Dry Run) {job_folder} created")
-            else:
-                os.mkdir(f"{job_folder}")
-        
+        job_folder, self.logging_status["job_folder"][number] = u.create_directory(f"{self.get_jobs_directory()}/{number}", dry_run=self.dry_run, logged_status=self.logging_status.get("job_folder").get(number))
         return job_folder
     
 
     def get_log_folder(self):
-        logs = f"{self.get_working_dir()}/logs"
-        if not os.path.exists(f"{logs}"):
-            if self.dry_run:
-                print (f"(Dry Run) {logs} created")
-            else:
-                os.mkdir(f"{logs}")
-        
+
+        logs, self.logging_status["log_folder"] = u.create_directory(f"{self.get_working_dir()}/logs", dry_run=self.dry_run, logged_status=self.logging_status.get("log_folder"))
         return logs
 
 
-    def cur_max_sequence_version(self, data):
+    def cur_max_sequence_version(self, data, versioned):
 
-        data["version"] = data["Ensembl_transcriptid"].str.split(".").str[-1]
+        data["version"] = data[versioned].str.split(".").str[-1]
 
         left_data = data.copy()
 
-        data = data[["Ensembl_proteinid","version"]]
+        data = data[[versioned,"version"]]
         data = pd.DataFrame(data.groupby("Ensembl_proteinid")["version"].max()).reset_index()
         data.rename(columns={"version": "latest_version"}, inplace=True)
 
@@ -156,12 +160,12 @@ class Prepare:
         return data
     
 
-    def max_sequence_version(self, data, fasta):
+    def max_sequence_version(self, data, fasta, unversioned):
 
-        seq_latest_versions = pd.DataFrame(fasta.groupby("Ensembl_proteinid")["version"].max()).reset_index()
+        seq_latest_versions = pd.DataFrame(fasta.groupby(unversioned)["version"].max()).reset_index()
         seq_latest_versions.rename(columns={"version": "latest_version"}, inplace=True)
 
-        data = data.merge(seq_latest_versions, on="Ensembl_proteinid", how="left")
+        data = data.merge(seq_latest_versions, on=unversioned, how="left")
 
         return data
     
@@ -176,8 +180,7 @@ class Prepare:
         alts = alts[["Ensembl_proteinid","Ensembl_geneid","Ensembl_transcriptid","sequence","version"]]
         
         alts = alts.merge(mutations, how="cross")
-        print  (f"Alts: {len(alts)}")
-
+        
         if len(alts) > 0:
             
             alts["alignment_score"] = alts.apply(fasta.alignment_score, axis=1)
@@ -191,18 +194,22 @@ class Prepare:
         
 
     def map_unversioned_sequences(self, FF, data, col_mapping):
+        
+        data_id_col = col_mapping.get("id_column")
+        versioned_key = col_mapping.get("id_column")
+        unversioned_key = f"unversioned_{col_mapping.get('id_column')}"
 
-        FF[[f"unversioned_{col_mapping['id_column']}","version"]] = FF[col_mapping['id_column']].str.split(".", expand=True)
+        FF[[f"{unversioned_key}","version"]] = FF[versioned_key].str.split(".", expand=True)
 
-        aligning = data.merge(FF, left_on=col_mapping.get("id_column"), right_on=f"unversioned_{col_mapping['id_column']}", how="left")
+        aligning = data.merge(FF, left_on=data_id_col, right_on=unversioned_key, how="left")
 
         aligning["alignment_score"] = aligning.apply(lambda row: fasta.alignment_score(row, col_mapping), axis=1)
 
-        aligning = self.max_sequence_version(fasta=self.fasta, data=aligning)
+        aligning = self.max_sequence_version(fasta=self.fasta, data=aligning, unversioned=unversioned_key)
 
         alignment    = aligning[aligning["alignment_score"] == 1]
 
-        non_aligning = aligning[(aligning["alignment_score"]<1) & (~aligning["Ensembl_proteinid"].isin(alignment["Ensembl_proteinid"]))]
+        non_aligning = aligning[(aligning["alignment_score"]<1) & (~aligning[data_id_col].isin(alignment[data_id_col]))]
 
         new_aligned = self.alt_sequences(non_aligning)
 
@@ -215,40 +222,92 @@ class Prepare:
         data = aligned[aligned["version"]==aligned["latest_version"]]
 
 
-
-    def add_sequences(self, data, col_mapping, versioned=True):
+    def add_sequences(self, data, validation_results):
         
-        if col_mapping["id_column"] in ["ENSP","ENST","ENSG"]:
+        def get_protein_ids(fasta):
             
-            FF_grch37 = fasta.collect_ensembl_fasta(primary=col_mapping["id_column"], assembly="GRCh37")
-            FF_grch38 = fasta.collect_ensembl_fasta(primary=col_mapping["id_column"], assembly="GRCh38")
+            ## First try to collect only versioned protein and transcript IDs
+            protein_ids = [p for p in validation_results.keys() if p in fasta.columns and validation_results[p]["versioned"] and validation_results[p]["found"]]
+            if protein_ids:
+                return protein_ids, True
             
+            ## If no versioned protein or transcript IDs are found, collect all unversioned IDs
+            protein_ids = [p for p in validation_results.keys() if p in fasta.columns and validation_results[p]["found"]]
+            if protein_ids:
+                return protein_ids, False
+            
+            raise Exception(f"Input columns {', '.join([p for p in validation_results.keys() if validation_results[p]['found']])} not found in FASTA file")
+
+        
+        col_mapping = {"mutation_column": "Substitution"}
+
+        ## Collect FASTA files
+        if not self.__fasta:
+            logger.info(f"--fasta flag not used, defaulting to Ensembl FASTA files (versions 90-110)")
+            Ensembl_FF_grch37 = fasta.collect_ensembl_fasta(assembly="GRCh37")
+            Ensembl_FF_grch38 = fasta.collect_ensembl_fasta(assembly="GRCh38")
+            
+            col_mapping["id_column"], versioned = get_protein_ids(Ensembl_FF_grch38)
+
             if versioned:
-                
-                data_grch37 = data.merge(FF_grch37, on=col_mapping.get("id_column"), how="left")
+            
+                data_grch37 = data.merge(Ensembl_FF_grch37, on=col_mapping.get("id_columns"), how="left")
                 unmapped_grch37 = len(data_grch37[data_grch37["sequence"].isna()])
 
-                data_grch38 = data.merge(FF_grch38, on=col_mapping.get("id_column"), how="left")
+                data_grch38 = data.merge(Ensembl_FF_grch38, on=col_mapping.get("id_columns"), how="left")
                 unmapped_grch38 = len(data_grch38[data_grch38["sequence"].isna()])
 
             else:
+                logger.info(f"Unversioned IDs used in input file. Finding the best matches in the FASTA file.")
 
-                data_grch37 = self.map_unversioned_sequences(FF_grch37, data, col_mapping)
+                data_grch37 = self.map_unversioned_sequences(Ensembl_FF_grch37, data, col_mapping)
                 unmapped_grch37 = len(data_grch37[data_grch37["sequence"].isna()])
 
-                data_grch38 = self.map_unversioned_sequences(FF_grch38, data, col_mapping)
+                data_grch38 = self.map_unversioned_sequences(Ensembl_FF_grch38, data, col_mapping)
                 unmapped_grch38 = len(data_grch38[data_grch38["sequence"].isna()])
 
             # Return the sequence mapped dataframe with the least number of unmapped IDs            
             data = data_grch38 if unmapped_grch38 <= unmapped_grch37 else data_grch37
 
         else:
-            raise ValueError(f"Unable to map data type: {col_mapping['id_column']} to a FASTA sequence")
+            logger.info(f"Using FASTA file {self.__fasta}")
+            fasta_seqs = fasta.read_fasta(self.__fasta)
+            col_mapping["id_column"], versioned = get_protein_ids(fasta_seqs)
+
+            if versioned:
+                data = data.merge(fasta_seqs, on=col_mapping["id_column"], how="left")
+            else:
+                logger.info(f"Unversioned IDs used in input file. Finding the best matches in the FASTA file.")
+                data = self.map_unversioned_sequences(fasta_seqs, data, col_mapping)
+
         
-        data = data.filter(items=[col_mapping['id_column'], col_mapping['mutation_column'], "sequence", "Memory Estimate (MB)", "Time per Mutation (hrs)"])
+        data = data.filter(items=col_mapping['id_column'] + [col_mapping['mutation_column'], "sequence", "Memory Estimate (MB)", "Time per Mutation (hrs)"])
+        logger.info(f"Mapped to protein/transcript sequences using columns {', '.join(col_mapping['id_column'])}")
+
+        return data, col_mapping
+
+
+    def check_unmapped(self, data, col_mapping):
+
+        unmapped = data[pd.isna(data["sequence"])]
+        if len(unmapped) > 0:
+
+            ## Log missing proteins/transcripts
+            log_error_message = f"{len(unmapped)} proteins have been dropped. No matching protein sequences found." 
+            logger.warning(f"{log_error_message} (additional info in {self.get_log_folder()}/errors.log)")
+
+            if self.dry_run:
+                logger.dry_run(f"Would've writen logs to {self.get_log_folder()}/errors.log)")
+            else:
+                u.missing_sequence_error_logging(unmapped, self.get_log_folder(), col_mapping, "No matching protein sequences found.")
+            
+            ## Drop unmapped proteins and mutations
+            data = data[~pd.isna(data["sequence"])]
         
+        if data.empty:
+            raise Exception("Could not map proteins to sequences. Try a different FASTA file?")
+
         return data
-    
 
 
     def groupby_id(self, data, col_mapping):
@@ -256,76 +315,18 @@ class Prepare:
         id_col = col_mapping["id_column"]
         muts   = col_mapping["mutation_column"]
 
-        data = data[[id_col,muts]].drop_duplicates()
+        data = data[[id_col,muts,"sequence"]].drop_duplicates()
         data = data.groupby([id_col])[muts].apply(' '.join).reset_index()
         data[f"num_{muts}"] = data[muts].str.split(" ").apply(lambda x: len(x))
         
         return data
-    
-
-
-    def count_mutations(self, data):
-        num_mutations = sum(data["mutation"].str.split(" ").apply(len))
-        return num_mutations
 
 
     def filtered_scored(self, data):
 
-        if self.get_database_status():
-            
-            #print ("DATABASE")
-            scores = pd.read_sql("SELECT seq_hash,mutation,'True' as scored FROM mutations", con=self.get_database_connection())
-            #print (scores)
-            scores["scored"] = scores["scored"].astype(bool)
-
-            print ("Filtering scored variants.")
-            print (f"Pre-filter: {len(data)}")
-
-            cur_cols = data.columns
-            
-            #print (data)
-            #data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(x.encode(encoding='utf-8')).hexdigest())
-            data["seq_hash"] = data["sequence"].apply(lambda x: hashlib.md5(str(x).encode(encoding='utf-8')).hexdigest())
-            #print (data)
-            #print ("HERE")
-            #exit()
-            data["mutation"] = data["mutation"].str.split(" ")
-            data = data.explode("mutation")
-            
-            data = data.merge(scores, on=["seq_hash","mutation"], how="left")
-            data["scored"].fillna(False, inplace=True)
-            
-            data = data[~data["scored"]]
-            data = data.drop_duplicates()
-            columns = [col for col in data.columns if col != "mutation"]
-            data = pd.DataFrame(data.groupby(columns)["mutation"].apply(lambda x: ' '.join(list(x)))).reset_index()
-            data = data[cur_cols]
-            print (f"Post-filter: {len(data)}")
-
-        elif os.path.exists("scores/MutPred2.tsv"):
-            scores = pd.read_csv("scores/MutPred2.tsv", sep="\t")[["hgvsp","MutPred2 score"]].drop_duplicates()
-
-            cur_cols = data.columns
-
-            data["mutation"] = data["mutation"].str.split(" ")
-            
-            data = data.explode("mutation")
-            print ("FIX NEEDED")
-            exit()
-
-            data = data.merge(scores, on="hgvsp", how="left")
-
-            data = data[data["MutPred2 score"].isna()]
-
-            data = data.drop("MutPred2 score", axis=1)
-
-            exclude = ['ENSP00000332973.4', 'ENSP00000355192.3', 'ENSP00000262186.5', 'ENSP00000305692.3', 'ENSP00000218516.4', 'ENSP00000352608.2', 'ENSP00000304408.4', 'ENSP00000039007.4', 'ENSP00000303992.5', 'ENSP00000347507.3', 'ENSP00000303208.5', 'ENSP00000261584.4', 'ENSP00000265849.7', 'ENSP00000333984.5', 'ENSP00000347942.3', 'ENSP00000300036.5', 'ENSP00000327145.8', 'ENSP00000355533.2', 'ENSP00000325527.5', 'ENSP00000287878.3', 'ENSP00000495254.2', 'ENSP00000369497.3', 'ENSP00000369129.3', 'ENSP00000234420.5', 'ENSP00000258439.3', 'ENSP00000257555.5', 'ENSP00000261448.5', 'ENSP00000295754.5', 'ENSP00000350283.3', 'ENSP00000298552.3', 'ENSP00000398266.2', 'ENSP00000280904.6', 'ENSP00000233242.1', 'ENSP00000290378.4', 'ENSP00000361107.2', 'ENSP00000155840.2', 'ENSP00000324856.6', 'ENSP00000415516.5', 'ENSP00000219476.3', 'ENSP00000233146.2', 'ENSP00000257430.4', 'ENSP00000373574.4', 'ENSP00000267163.4', 'ENSP00000261590.8', 'ENSP00000341838.5', 'ENSP00000454071.1', 'ENSP00000357283.4', 'ENSP00000342800.5', 'ENSP00000301761.3', 'ENSP00000341551.3', 'ENSP00000256474.3', 'ENSP00000442795.1', 'ENSP00000224784.6', 'ENSP00000407590.2', 'ENSP00000242839.5', 'ENSP00000231790.3', 'ENSP00000344666.5', 'ENSP00000394933.3', 'ENSP00000385107.4', 'ENSP00000364649.3', 'ENSP00000356953.3', 'ENSP00000362299.4', 'ENSP00000361021.3', 'ENSP00000364699.3', 'ENSP00000364133.4', 'ENSP00000269305.4', 'ENSP00000499593.1', 'ENSP00000228841.8', 'ENSP00000262340.5', 'ENSP00000351490.4', 'ENSP00000417404.1', 'ENSP00000292327.4']
-            data["protein_id"] = data["hgvsp"].str.split(":").str[0]
-            #print (data)
-            print (f"Pre-filter: {len(data)}")
-            data = data[~data["protein_id"].isin(exclude)]
-            print (f"Post-filter: {len(data)}")
-            data.drop("protein_id", inplace=True, axis=1)
+        """
+        TODO: Create function to filter already scored missense variants. This will need to be built in conjunction with catalog.
+        """
         
         return data
     
@@ -343,281 +344,83 @@ class Prepare:
 
     def write_sequence_to_file(self, number, file_number, header, sequence):
 
-        output_folder = self.get_job_folder(number=file_number)
+        job_folder = self.get_job_folder(number=file_number)
 
-        output_file = f"{output_folder}/input.faa"
-        #print (f"Writing > {output_file}")
-        if number == 0:
-            #if os.path.exists(output_file):
-            output = open(output_file, "w")
-            output.write(header)
-            output.write(sequence)
+        faa_input_file = f"{job_folder}/input.faa"
+        
+        if self.dry_run:
+            if not self.logging_status.get("input_faa_files").get(file_number):
+                logger.dry_run(f"Would've written job {file_number} input.faa")
+                self.logging_status["input_faa_files"][file_number] = True
+
         else:
-            output = open(output_file, "a")
-            output.write(header)
-            output.write(sequence)
-        output.close()
-
-
-
-    def clean_splits(self, row):
-
-        row["num_mutations"] = len(row["mutation"].split(" "))
-        row["Time Estimate (hrs)"] = row["Time per Mutation (hrs)"]*row["num_mutations"]
-        
-        return row
-
-
-
-    def split_mutations(self, x, threshold, num_overflow_mutations):
-        mutations = x["mutation"].split(" ")
-
-        overflow_mutations = mutations[0:num_overflow_mutations]
-        leftover_mutations = mutations[num_overflow_mutations:len(mutations)]
-
-        size_of_splits = int(len(leftover_mutations)/((x["Time Estimate (hrs)"] - (num_overflow_mutations * x["Time per Mutation (hrs)"]))/threshold))
-        
-        if len(overflow_mutations) > 0:
-            return [" ".join(overflow_mutations)] + [" ".join(leftover_mutations[i:i+size_of_splits]) for i in range(0,len(mutations[num_overflow_mutations:len(mutations)]),size_of_splits)]
-        else:
-            return [" ".join(leftover_mutations[i:i+size_of_splits]) for i in range(0,len(mutations[num_overflow_mutations:len(mutations)]),size_of_splits)]
-
-
-
-    def split_sequence(self, data, cur_number, variable, threshold):
-        
-        overflow = max(0, cur_number - threshold)
-
-        num_overflow_mutations = int(overflow / data["Time per Mutation (hrs)"])
-
-        data = data.to_frame().T
-
-        data["mutation"] = data.apply(lambda x: self.split_mutations(x, threshold, num_overflow_mutations), axis=1)
-        
-        data = data.explode("mutation")
-        data = data.apply(lambda row: self.clean_splits(row), axis=1)
-
-        data["Time Estimate (hrs)"] = data.apply(lambda row: len(row["mutation"].split(" "))*row["Time per Mutation (hrs)"], axis=1)
-
-        return data
-         
-
-
-    def split_data(self, data, file_number=1):
-        
-        number = 0
-        job_information = []
-        memory = []
-        threshold = self.get_time()
-        variable  = "Time Estimate (hrs)"
-        
-        #print (data)
-
-        for index,row in data.iterrows():
-
-            if number + row[variable] > threshold + 2:
-                
-                splits = self.split_sequence(row, number, variable, threshold)
-                num_of_splits = len(splits)
-                
-                cur_split = 0
-                for index,split in splits.iterrows():
-                    cur_split += 1
-                    header = f">{split['Ensembl_proteinid']}|{split['gene_symbol']} {split['mutation']}\n"
-                    sequence = f"{split['sequence']}\n"
-                    
-                    if self.dry_run:
-                        pass
-                        #self.set_job_folder(file_number)
-                    else:
-                        self.write_sequence_to_file(number, file_number, header, sequence)
-                        self.get_job_folder(file_number)
-
-                    memory.append(split["Memory Estimate (MB)"])
-                    number = split["Time Estimate (hrs)"]
-
-                    if cur_split != num_of_splits:
-                        job_information.append({
-                            "File": file_number,
-                            "Time Estimate": number,
-                            "Memory Minimum": max(memory)
-                        })
-                        memory = []
-                        file_number += 1
+            if number == 0:
+                output = open(faa_input_file, "w")
+                output.write(header)
+                output.write(sequence)
             else:
-                header = f">{row['Ensembl_proteinid']}|{row['gene_symbol']} {row['mutation']}\n"
-                sequence = f"{row['sequence']}\n"
-                #print (row)
-                memory.append(row["Memory Estimate (MB)"])
-                ## write to file 
-                if self.dry_run:
-                    pass
-                    #self.set_job_folder(file_number)
+                output = open(faa_input_file, "a")
+                output.write(header)
+                output.write(sequence)
 
-                else:
-                    self.write_sequence_to_file(number, file_number, header, sequence)
-                    self.get_job_folder(file_number)
-                
-                number += row[variable]
-                #print (number, threshold)
-            
-                if number >= threshold:
-
-                    job_information.append({
-                        "File": file_number,
-                        "Time Estimate": number,
-                        "Memory Minimum": max(memory)
-                    })
-
-                    number = 0
-                    file_number += 1
-                    memory = []
-                else:
-                    pass
-        else:
-            
-            memory.append(row["Memory Estimate (MB)"])
-            number += row[variable]
-
-            job_information.append({
-                "File": file_number,
-                "Time Estimate": number,
-                "Memory Minimum": max(memory)
-            })
-
-            if self.dry_run:
-                    pass
-                    #self.set_job_folder(file_number)
-
-            else:
-                self.write_sequence_to_file(number, file_number, header, sequence)
-                self.get_job_folder(file_number)
-                
-        job_information = pd.DataFrame(job_information)
-
-        job_information["Normal Memory"] = job_information["Memory Minimum"].apply(lambda x: x <= 5000)
-        job_information["Middle Memory"] = job_information["Memory Minimum"].apply(lambda x: x > 5000 and x <= 10000)
-        job_information["High Memory"]   = job_information["Memory Minimum"].apply(lambda x: x > 10000)
-
-        return job_information
-
+            output.close()
     
 
     def prepare_mutpred_input(self):
-
+        
+        ## Read in input data
         input_data = self.get_input()
-        
-        self.variant_data, col_mapping = process_input(input_data, canonical=self.canonical, all_possible=self.all_possible)
+
+        ## Process input data for use with the MutPred Suite
+        logger.info(f"Processing input data {self.get_input_path()}")
+        self.variant_data, validation_results = process_input(input_data, canonical=self.canonical, all_possible=self.all_possible)
             
-        self.variant_data = self.groupby_id(self.variant_data, col_mapping)
 
-        self.variant_data = self.add_sequences(self.variant_data, col_mapping)
-        
-        #self.variant_data = self.filtered_scored(self.variant_data)
-        
-        self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: len(row[col_mapping["mutation_column"]].split(" "))*row["Time per Mutation (hrs)"], axis=1)
-
-        self.variant_data = fasta.check_sequences(self.variant_data, col_mapping)
-
-        print (self.variant_data)
-        exit()
-
-        ## Check if any sequences are invalid
-        not_passed = self.variant_data[self.variant_data["status"]==False]
-        if len(not_passed) > 0:
-            print (f"{len(not_passed)} proteins failed quality check")
-            #print (not_passed)
-            #exit()
-            self.variant_data = self.variant_data[self.variant_data["status"]]
+        ## Add protein/transcript sequences
+        logger.info(f"Mapping protein/transcript sequences")
+        self.variant_data, col_mapping = self.add_sequences(self.variant_data, validation_results)
 
         ## Check if any of the proteins are unmapped
-        unmapped = self.variant_data[pd.isna(self.variant_data["sequence"])]
-        if len(unmapped) > 0:
-            print ("======= UNMAPPED PROTEINS ======")
-            print (unmapped)
-            exit()
+        self.variant_data = self.check_unmapped(self.variant_data, col_mapping)
         
-        #print (self.variant_data.sort_values("Time Estimate (hrs)"))
-        #print (self.variant_data)
-
-        #self.summary(self.variant_data)
-        #print (self.variant_data)
-
-        print (f"Post filtered variants: {self.count_mutations(self.variant_data)}")
-
-        abs_working_dir = os.path.abspath(self.get_working_dir())
-
-        ## This is necessary to initiate the logs folder for the LSF script.
-        logs = self.get_log_folder()
-
-        tech_requirements = self.split_data(self.variant_data, file_number=self.__fasta_file_number_start)
-        
-        user = 1
-        if user == 1:
-            per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=1)
-
-            for user in range(len(per_user_tech_requirements)):
-                lsf.usage_report(per_user_tech_requirements[user])
-
-                lsf.build_lsf_config_file(per_user_tech_requirements[user], abs_working_dir, self.get_base(), user, self.dry_run)
+        ## Collect all possible amino acid substitutions from mapped sequence if --all-possible flag is used
+        if self.all_possible:
+            logger.info(f"--all-possible selected. Collecting all possible amino acid substitutions.")
+            self.variant_data = u.AminoAcidMap.get_all_possible_mutations(self.variant_data, col_mapping)
         else:
-            lsf.usage_report(tech_requirements)
+            ## Group all mutations by protein/transcript
+            self.variant_data = self.groupby_id(self.variant_data, col_mapping)
+        
+        ## Check that the sequences conform to MutPred2 standards
+        logger.info(f"Running sequence quality checks")
+        self.variant_data = fasta.sequence_quality_check(self.variant_data)
+        
+        ## Check that the sequences and mutations are concordant with MutPred2 expectations
+        logger.info(f"Running data quality checks of mutations")
+        self.variant_data = fasta.data_quality_check(self, self.variant_data, col_mapping)
 
-            lsf.build_lsf_config_file(tech_requirements, abs_working_dir, self.get_base(), user, self.dry_run)
+        # TODO: filter out already scored mutations
+        #self.variant_data = self.filtered_scored(self.variant_data)
 
-        #else:
-        #    print (f"HGVSp key not found in input columns -> [{','.join(self.variant_data.columns)}]")
-        #    exit()
+        ## Estimate time to complete MutPred2 computations on a per protein level
+        logger.info(f"Estimating time to completion")
+        self.variant_data["Time Estimate (hrs)"] = self.variant_data.apply(lambda row: len(row[col_mapping["mutation_column"]].split(" "))*row["Time per Mutation (hrs)"], axis=1)
 
+        ## Calculate the computational resources and number of parallel jobs necessary to complete the MutPred runs in the designated time.
+        logger.info(f"Calculating resource requirements and parallelizing jobs")
+        tech_requirements = split_data(self, self.variant_data, col_mapping, file_number=self.__fasta_file_number_start)
+        
+        ## Divide MutPred2 jobs evenly amoung the designated users     
+        per_user_tech_requirements = lsf.split_for_multiple_users(tech_requirements, users=self.users)
+        
+        for user in range(len(per_user_tech_requirements)):
+            
+            ## Generate the usage report if --verbose is active
+            lsf.usage_report(per_user_tech_requirements[user])
 
+            ## Build and output the 
+            lsf.build_lsf_config_file(self, per_user_tech_requirements[user], user + 1)
+       
 
 if __name__ == "__main__":
-
-    import utils as u
-
-    engine = u.get_sql_engine(config_name="Remote", config_file="/Users/bergqt01/Research/MutPredPy/resources/sql_configs.yaml")
-
-
-
-    mutations = pd.read_sql("SELECT COUNT(*) AS variant_count FROM Variant", con=engine)
-    #query = pd.read_sql("SELECT * FROM Variant limit 10", con=engine)
-    #tables = pd.read_sql("SHOW TABLES", con=engine)
-    print (mutations)
-
-    exit()
-    parser = argparse.ArgumentParser(description='Take a list of chromosomal variants, Ensembl protein mutations, or other formats and output faa protein sequence files ready for MutPred2 intake.')
-
-    def time_minimum(x):
-        x = int(x)
-
-        if x < 3:
-            raise argparse.ArgumentTypeError("Minimum time is 5 hours")
-        return x
-    
-
-    parser.add_argument('--time', type=time_minimum, nargs="?", default=24,
-                        help="Target time in hours to run the jobs")
-    parser.add_argument('--input', type=str, nargs=1,
-                        help='The name of the input filename that is located in the data folder.')
-    parser.add_argument("--dry_run", action="store_true")
-    parser.add_argument("--canonical", action="store_true")
-
-    
-    args = parser.parse_args()
-
-    input   = args.input[0]
-    working_dir = args.working_idr[0]
-    time    = args.time
-    dry_run = args.dry_run
-    canonical = args.canonical
-
-    
-    mut = MutPredpy(
-        input=input,
-        working_dir=working_dir,
-        time=time,
-        dry_run=dry_run,
-        canonical=canonical
-    )
-    
-    mut.prepare_mutpred_input()
+    pass
