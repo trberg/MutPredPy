@@ -1,11 +1,9 @@
 import hashlib
 import yaml
 import re
+import os
 import logging
-
-
-# Configure logging for debugging and tracking
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger()
 
 
 # Class for amino acid mappings (3-letter to 1-letter and vice versa)
@@ -21,8 +19,8 @@ class AminoAcidMap:
     ONE_TO_THREE = {v: k for k, v in THREE_TO_ONE.items()}  # Reverse mapping (1-letter to 3-letter)
 
     # Regex Patterns
-    SINGLE_AA = "ACDEFGHIKLMNPQRSTVWY" #UX=
-    TRIPLETS_AA = "Ala|Arg|Asn|Asp|Cys|Glu|Gln|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Sec|Thr|Trp|Tyr|Val"
+    SINGLE_AA = r"ACDEFGHIKLMNPQRSTVWY" #UX=
+    TRIPLETS_AA = r"Ala|Arg|Asn|Asp|Cys|Glu|Gln|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Sec|Thr|Trp|Tyr|Val"
 
     AA_SINGLE_LETTER_REGEX = f"^[{SINGLE_AA}]$"
     AA_THREE_LETTER_REGEX = f"^(?i)({TRIPLETS_AA})$"
@@ -86,8 +84,6 @@ class AminoAcidMap:
             return f"{ref_mapped}{loc}{alt_mapped}"
         
         except (AttributeError, ValueError) as e:
-            #logging.error(f"Invalid mutation format: '{mut}' - {e}")
-            pass
             return "."
         
 
@@ -125,11 +121,33 @@ class AminoAcidMap:
         
         # Return "Unknown" if no pattern matches
         return "Unknown"
+    
+
+    @staticmethod
+    def all_possible_mutations(sequence):
+        
+        mutations = []
+        for i in range(len(sequence)):
+            pos = i + 1
+            ref = sequence[i]
+            for alt in AminoAcidMap.SINGLE_AA:
+                if ref != alt:
+                    mutation = f"{ref}{pos}{alt}"
+                    mutations.append(mutation)
+
+        return " ".join(mutations)
+    
+
+    @staticmethod
+    def get_all_possible_mutations(df, col_mapping):
+
+        df[col_mapping["mutation_column"]] = df["sequence"].apply(AminoAcidMap.all_possible_mutations)
+
+        return df
 
 
 def get_seq_hash(sequence):
     return hashlib.md5(sequence.encode(encoding='utf-8')).hexdigest()
-
 
 
 def collect_value(x, keys):
@@ -155,3 +173,88 @@ def collect_value(x, keys):
     keys_of_interest = {k: key_values.get(k, None) for k in keys}
     
     return keys_of_interest
+
+
+
+def write_log_errors(errors, log_dir):
+
+    output_log = f"{log_dir}/errors.log"
+
+    if os.path.exists(output_log):
+        with open(output_log, "a") as log:
+            log.write("\n".join(errors))
+    else:
+        with open(output_log, "w") as log:
+            log.write("\n".join(errors))
+
+
+def check_pass_error_logging(error_df, log_dir, col_mapping, error_message):
+
+    errors = []
+    errors.append(error_message)
+    for _,row in error_df.iterrows():
+        errors.append(f"{col_mapping['id_column']}: {row[col_mapping['id_column']]}")
+        errors.append(f"\tSubstitutions: {row[col_mapping['mutation_column']]}")
+        
+        if len(row["Sequence Errors"]) > 0:
+            errors.append(f"\tSequence Errors: {', '.join(row['Sequence Errors'])}")
+
+        errors.append("\tMutation Errors:")
+        for error in row["Mutation Errors"]:
+            errors.append(f"    - {error}")
+        errors.append("------------------------------------")
+
+    write_log_errors(errors, log_dir)
+
+
+def missing_sequence_error_logging(error_df, log_dir, col_mapping, error_message):
+    errors = []
+    errors.append(error_message)
+    for _,row in error_df.iterrows():
+        errors.append(f"{col_mapping['id_column']}: {row[col_mapping['id_column']]}")
+        errors.append(f"\tSubstitutions: {row[col_mapping['mutation_column']]}")
+        errors.append(f"\tSequence Error: No matching sequence found in FASTA file.")
+        errors.append("------------------------------------")
+
+    write_log_errors(errors, log_dir)
+
+    
+DRY_RUN_LEVEL = 25
+def dry_run(self, message, *args, **kwargs):
+    """Log a message at the DRY RUN level."""
+    if self.isEnabledFor(DRY_RUN_LEVEL):
+        self._log(DRY_RUN_LEVEL, message, args, **kwargs)
+
+
+def set_logger_level(log_level):
+
+    # Add Dry Run Logging level
+    logging.addLevelName(DRY_RUN_LEVEL, "DRY RUN")
+    logging.Logger.dry_run = dry_run
+
+    # Get the root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Check if handlers exist (to avoid adding multiple handlers)
+    if not root_logger.hasHandlers():
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        root_logger.addHandler(handler)
+    else:
+        # Update the format of existing handlers
+        for handler in root_logger.handlers:
+            handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+
+
+def create_directory(dir_path, dry_run, logged_status):
+
+    if not os.path.exists(f"{dir_path}"):
+        if dry_run:
+            if not logged_status:
+                logger.dry_run(f"Would've created {dir_path}.")
+                logged_status = True
+        else:
+            os.makedirs(f"{dir_path}")
+    
+    return dir_path, logged_status
