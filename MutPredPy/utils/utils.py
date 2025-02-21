@@ -2,8 +2,11 @@ import hashlib
 import yaml
 import re
 import os
+import yaml
 import logging
 logger = logging.getLogger()
+
+import importlib.resources as pkg_resources
 
 
 # Class for amino acid mappings (3-letter to 1-letter and vice versa)
@@ -49,7 +52,7 @@ class AminoAcidMap:
         """
         If direction=auto, Automatically detect and convert a mutation string between single-letter and three-letter amino acid notation.
         if direction=singlet, converts a mutation string to single-letter amino acid notation
-        if direction==triplet, converts a mutation string to three-letter amino acid notation
+        if direction=triplet, converts a mutation string to three-letter amino acid notation
 
         Args:
             x (str): Mutation string (e.g., "A123T" or "Ala123Thr").
@@ -63,21 +66,20 @@ class AminoAcidMap:
             ref, alt = mut.split(loc)  # Split reference and alternate residues
 
             # Detect if the input is single-letter or three-letter notation
-            if len(ref) == 1:  # Single-letter input
-                ref_mapped = AminoAcidMap.map_amino_acid(ref)
-            elif len(ref) == 3:
-                ref_mapped = AminoAcidMap.map_amino_acid(ref.capitalize())
-            elif len(ref) == 0:
-                ref_mapped = ""
-            else:
-                raise ValueError("Inconsistent mutation format detected.")
-
-            if len(alt) == 1:
-                alt_mapped = AminoAcidMap.map_amino_acid(alt)
-            elif len(alt) == 3:  # Three-letter input
-                alt_mapped = AminoAcidMap.map_amino_acid(alt.capitalize())
-            elif len(alt) == 0:
-                alt_mapped = ""
+            if len(ref) == 1 and len(alt) == 1:  # Single-letter input
+                if direction == "singlet":
+                    ref_mapped = ref
+                    alt_mapped = alt
+                else:
+                    ref_mapped = AminoAcidMap.map_amino_acid(ref)
+                    alt_mapped = AminoAcidMap.map_amino_acid(alt)
+            elif len(ref) == 3 and len(alt) == 3:
+                if direction == "triplet":
+                    ref_mapped = ref
+                    alt_mapped = alt
+                else:
+                    ref_mapped = AminoAcidMap.map_amino_acid(ref)
+                    alt_mapped = AminoAcidMap.map_amino_acid(alt)
             else:
                 raise ValueError("Inconsistent mutation format detected.")
 
@@ -248,13 +250,96 @@ def set_logger_level(log_level):
 
 
 def create_directory(dir_path, dry_run, logged_status):
+    """
+    Create a directory if it does not already exist.
 
+    Parameters:
+    - dir_path (str): Path of the directory to be created.
+    - dry_run (bool): If True, only logs the action without actually creating the directory.
+    - logged_status (bool): Indicates if the action has already been logged.
+
+    Returns:
+    - tuple: Directory path and updated logged_status.
+    """
     if not os.path.exists(f"{dir_path}"):
         if dry_run:
+            # Log the action if it hasn't been logged yet
             if not logged_status:
                 logger.dry_run(f"Would've created {dir_path}.")
                 logged_status = True
         else:
+            # Create the directory if dry_run is False
             os.makedirs(f"{dir_path}")
     
     return dir_path, logged_status
+
+
+def configurations():
+    """
+    Load configuration settings from the config.yaml file.
+
+    Returns:
+    - dict: Configuration settings for the active location.
+    """
+    # Load the config.yaml file
+    config_path = pkg_resources.files("mutpredpy").joinpath("config.yaml")
+    with open(config_path, 'r') as config:
+        configs = yaml.safe_load(config)
+
+    # Get the current active location setting
+    cur_location = configs.get('active_location', 'local')
+
+    # Retrieve configuration for the active location
+    location_config = configs['locations'].get(cur_location, {})
+
+    return location_config
+
+
+def mutpred2_path():
+    """
+    Retrieve the path for MutPred2 from the configuration file.
+
+    Returns:
+    - str: Path to the MutPred2 executable.
+
+    Raises:
+    - Exception: If the path is not defined in the configuration.
+    """
+    # Get configuration settings
+    location_configs = configurations()
+
+    # Retrieve the MutPred2 path
+    mutpred_path = location_configs.get('mutpred2_path', "")
+
+    # Raise an error if the path is not defined
+    if not mutpred_path:
+        raise Exception("No MutPred2 path designated in config.yaml.")
+    elif not os.path.exists(mutpred_path):
+        raise Exception(f"MutPred2 path {mutpred_path} not found. Change in config.yaml.")
+    else:
+        return mutpred_path
+
+
+def catalog_directory():
+    """
+    Retrieve the path for the catalog directory from the configuration file.
+
+    Returns:
+    - str: Path to the catalog directory.
+
+    Raises:
+    - Exception: If the catalog path is not defined in the configuration.
+    """
+    # Get configuration settings
+    location_configs = configurations()
+
+    # Retrieve the catalog path
+    catalog_path = location_configs.get("catalog", "")
+
+    # Raise an error if the path is not defined
+    if not catalog_path:
+        raise Exception("No catalog path designated in config.yaml")
+    elif not os.path.exists(catalog_path):
+        raise Exception(f"Catalog path {catalog_path} not found. Change in config.yaml.")
+    else:
+        return catalog_path

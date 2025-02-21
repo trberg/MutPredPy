@@ -1,6 +1,8 @@
 import pandas as pd
+import numpy as np
 import os
 import re
+import math
 from Bio import SeqIO
 import importlib.resources as pkg_resources
 import logging
@@ -92,16 +94,12 @@ def check_sequences(row, col_mapping):
 
     # Validate that reference amino acids match the sequence
     for i, pos in enumerate(mutation_positions):
-        try:
+        if len(sequence) >= pos:
             if ref_AA[i] != sequence[pos - 1]:
                 errors["Mutation Errors"].append(f"Mismatch at {mutations[i]}: expected {ref_AA[i]}, found {sequence[pos - 1]}.")
-        except:
-            print (i, pos)
-            #print (ref_AA)
-            print (len(sequence))
-            #print (sequence[588])
-            print (row)
-            exit()
+        else:
+
+            errors["Mutation Errors"].append(f"{mutations[i]} located at {pos} but mapped sequence is {len(sequence)} AAs long.")
 
     return (not errors["Mutation Errors"] and not errors["Sequence Errors"]), errors["Sequence Errors"], errors["Mutation Errors"]
 
@@ -122,9 +120,11 @@ def clean_FASTA_sequence(sequence):
     """
     try:
         return sequence.replace("*", "A").replace("U", "A").lstrip("X")
-    except AttributeError:
+    except AttributeError as e:
         print (sequence)
         print (type(sequence))
+        print (e)
+        print (sequence.replace("*", "A").replace("U", "A").lstrip("X"))
         exit()
 
 
@@ -153,6 +153,7 @@ def data_quality_check(prepare, data, col_mapping):
 
     return data
 
+
 def sequence_quality_check(data):
     """
     Cleans existing sequences in preparation for MutPred2
@@ -175,8 +176,18 @@ def alignment_score(data, col_mapping):
     
     mutations = data[col_mapping["mutation_column"]].split(" ")
     positions = [int(re.search(r'\d+', mut).group()) - 1 for mut in mutations]
+    sequence = data["sequence"]
 
-    return sum(1 for pos, ref in zip(positions, mutations) if data["sequence"][pos] == ref[0]) / len(positions)
+    if not isinstance(sequence, str) and np.isnan(sequence):
+        return 0
+    
+    elif len(sequence) < max(positions):
+        greater_than_sequence = [len(sequence) >= pos for pos in positions]
+        return sum(greater_than_sequence) / len(positions)
+
+    else:
+        return sum(1 for pos, ref in zip(positions, mutations) if sequence[pos] == ref[0]) / len(positions)    
+    
 
 
 def get_fasta_location(assembly="GRCh38"):

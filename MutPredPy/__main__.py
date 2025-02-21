@@ -3,6 +3,7 @@ from typing import Optional
 from .prep import prep
 from .status import status
 from .merge import merge
+from .catalog import Catalog
 
 app = typer.Typer()
 
@@ -76,6 +77,17 @@ def merge(
         mechanisms=mechanisms,
     ).merge()
 
-#if __name__ == "__main__":
+## CATALOG
+@app.command()
+def catalog(
+    job_dir: str = typer.Option(..., help="Path to MutPred2 jobs directory"),
+    dry_run: bool = typer.Option(False, help="Run merging process without saving output")
+):
+    """Catalog all mutpred scores from a given job directory"""
+    Catalog(
+        job_dir=job_dir, 
+        dry_run=dry_run
+    )
+
 def main():
     app()

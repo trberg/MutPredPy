@@ -217,7 +217,7 @@ def finalize_processed_input(df, validation_results):
 
             ## If HGVSp IDs are found, ignore amino acid columns and just HGVSp annotated mutations
             if validation_results["HGVSp"]["found"]:
-                processed_output["Substitution"] = df[validation_results["id_column"]].str.split(":").str[-1].str.split("p.").str[-1].apply(AminoAcidMap.mutation_mapping)
+                processed_output["Substitution"] = df[validation_results["id_column"]].str.split(":").str[-1].str.split("p.").str[-1].apply(lambda x: AminoAcidMap.mutation_mapping(x, direction="singlet"))
 
             ## Handle amino acid columns
             elif results["found"]:
@@ -227,18 +227,19 @@ def finalize_processed_input(df, validation_results):
 
                 ## If ref, alt, and pos columns are all different, concat them together
                 if ref_col != alt_col and alt_col != pos_col:
-                    processed_output["Substitution"] = processed_output.apply(lambda row: f'{row[ref_col]}{row[pos_col]}{row[alt_col]}').apply(AminoAcidMap.mutation_mapping)
+                    processed_output["Substitution"] = df.apply(lambda row: f'{row[ref_col]}{row[pos_col]}{row[alt_col]}').apply(lambda x: AminoAcidMap.mutation_mapping(x, direction="singlet"))
                 
                 ## If ref and alt are the same, try and parse them out.
                 elif ref_col == alt_col and alt_col != pos_col:
-                    processed_output["Substitution"] = processed_output.apply(
+                    processed_output["Substitution"] = df.apply(
                         lambda row: f'{row[ref_col].split("/")[0]}{row[pos_col]}{row[alt_col].split("/")[0]}' if "/" in row[ref_col] \
                             else f'{row[ref_col]}{row[pos_col]}{row[alt_col]}'
-                        ).apply(AminoAcidMap.mutation_mapping)
+                        ).apply(lambda x: AminoAcidMap.mutation_mapping(x, direction="singlet"))
                     
                 ## If all three columns are the same, treat the column as a mutation column and convert to single letter notation.
                 elif ref_col == alt_col and alt_col == pos_col:
-                    processed_output["Substitution"] = processed_output[ref_col].apply(AminoAcidMap.mutation_mapping)
+                    
+                    processed_output["Substitution"] = df[ref_col].apply(lambda x: AminoAcidMap.mutation_mapping(x, direction="singlet"))
                 
                 ## If none of the above, create a null mutation column
                 else:

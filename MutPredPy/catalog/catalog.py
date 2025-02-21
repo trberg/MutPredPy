@@ -1,37 +1,74 @@
 
 import os
+import re
 import pandas as pd
 import scipy.io as sio
 
+from ..utils import utils as u
 
 class Catalog:
 
-    def __init__(self, job_dir, storage_location, dry_run):
+    def __init__(self, job_dir, dry_run):
         
-        self.job_dir = job_dir
-        self.storage_location = storage_location
+        
+        self.job_dir = self.check_jobs_directory(job_dir)
+        self.catalog_location = u.catalog_directory()
         self.dry_run = dry_run
 
 
     def create_index(self):
         pass
 
+    
+    def check_jobs_directory(self, job_dir):
+        """
+        Checks if the given directory contains only job folders named 'job_<number>' or just a number.
+        Each job folder must contain 'input.faa' and 'output.txt'.
 
-    def check_storage_location_setup(self):
+        Args:
+            job_dir (str): Path to the directory to check.
 
+        Returns:
+            job_dir (str): Path to the checked jobs directory.
+        """
         
-        if os.path.exists(self.storage_location) and os.path.exists(f"{self.storage_location}/catalog"):
-            pass
-        else:
-            os.makedirs(self.storage_location)
-            os.makedirs(f"{self.storage_location}/catalog")
+        discrepancies = []
+        job_pattern = re.compile(r"^(job_\d+|\d+)$")  # Pattern for "job_<number>" or just a number.
 
+        # Check if the job directory exists
+        if not os.path.exists(job_dir):
+            raise Exception(f"Job directory {job_dir} not found")
+        
+        # Iterate through items in the job directory
+        for job in os.listdir(job_dir):
+            job_path = os.path.join(job_dir, job)
 
-        if os.path.exists(f"{self.storage_location}/index.json"):
-            pass
-        else:
-            self.create_index()
+            # Check if it's a valid job folder
+            if os.path.isdir(job_path) and job_pattern.match(job):
 
+                # Check required files inside the job folder
+                required_files = ["input.faa", "output.txt"]
+                missing_files = [file for file in required_files if not os.path.isfile(os.path.join(job_path, file))]
+
+                if missing_files:
+                    discrepancies.append(f"Missing files in '{job}': {', '.join(missing_files)}\n")
+            else:
+                # If it's not a valid job folder, flag it
+                if os.path.isdir(job_path):
+                    discrepancies.append(f"Unexpected folder: {job}\n")
+                else:
+                    discrepancies.append(f"Unexpected file: {job}\n")
+
+        if len(discrepancies) > 0:
+            raise Exception(f"Issues found in job directory {job_path}.\n{''.join(discrepancies)}")
+        
+        return job_dir
+        
+
+    def get_job_folder(self, number):
+
+        job_folder, self.logging_status["job_folder"][number] = u.create_directory(f"{self.get_jobs_directory()}/{number}", dry_run=self.dry_run, logged_status=self.logging_status.get("job_folder").get(number))
+        return job_folder
 
 
     def load_features(self, job):
