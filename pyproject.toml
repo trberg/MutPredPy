@@ -34,4 +34,4 @@ dependencies = {file = ["requirements.txt"]}
 version = {attr = "mutpredpy.__version__"}
 
 [tool.setuptools.package-data]
-"mutpredpy" = ["resources/sequence_time.npy","resources/memory_usage.npy","resources/Homo_sapiens.GRCh38.combined.pep.all.fa","resources/Homo_sapiens.GRCh37.combined.pep.all.fa"]
+"mutpredpy" = ["pkg_resources/sequence_time.npy","pkg_resources/memory_usage.npy","pkg_resources/Homo_sapiens.GRCh38.combined.pep.all.fa","pkg_resources/Homo_sapiens.GRCh37.combined.pep.all.fa","config.yaml"]
