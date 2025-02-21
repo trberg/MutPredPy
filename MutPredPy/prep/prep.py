@@ -141,85 +141,91 @@ class Prepare:
 
         logs, self.logging_status["log_folder"] = u.create_directory(f"{self.get_working_dir()}/logs", dry_run=self.dry_run, logged_status=self.logging_status.get("log_folder"))
         return logs
-
-
-    def cur_max_sequence_version(self, data, versioned):
-
-        data["version"] = data[versioned].str.split(".").str[-1]
-
-        left_data = data.copy()
-
-        data = data[[versioned,"version"]]
-        data = pd.DataFrame(data.groupby("Ensembl_proteinid")["version"].max()).reset_index()
-        data.rename(columns={"version": "latest_version"}, inplace=True)
-
-        data = left_data.merge(data, on="Ensembl_proteinid", how="left")
-
-        data = data.drop_duplicates(subset=["Ensembl_proteinid","Ensembl_transcriptid"])
-
-        return data
     
-
-    def max_sequence_version(self, data, fasta, unversioned):
-
-        seq_latest_versions = pd.DataFrame(fasta.groupby(unversioned)["version"].max()).reset_index()
-        seq_latest_versions.rename(columns={"version": "latest_version"}, inplace=True)
-
-        data = data.merge(seq_latest_versions, on=unversioned, how="left")
-
-        return data
-    
-    
-    def alt_sequences(self, data):
         
-        mutations = data["mutation"]
 
-        fasta_seqs = fasta.collect_fasta(pep_file=self.__fasta_location, drop_dups=False)
+    def mapping_unversioned_sequence(self, FF, data, col_mapping):
+        
+        mutation_col = col_mapping['mutation_column']
+        id_cols = col_mapping['id_column']
 
-        alts = fasta_seqs[(fasta_seqs["Ensembl_geneid"].isin(data["Ensembl_geneid"])) | (fasta_seqs["Ensembl_transcriptid"].isin(data["Ensembl_transcriptid"]))].drop_duplicates()
-        alts = alts[["Ensembl_proteinid","Ensembl_geneid","Ensembl_transcriptid","sequence","version"]]
+        # Split version from IDs in FF
+        for col in id_cols:
+            FF[f'{col}_unversioned'] = FF[col].str.split('.').str[0]
+            FF[f'{col}_version'] = FF[col].str.split('.').str[1].astype(float)
+
+        # Split version from IDs in data
+        for col in id_cols:
+            data[f'{col}_unversioned'] = data[col].str.split('.').str[0]
+            #data[f'{col}_version'] = data[col].str.split('.').str[1].astype(float)
+
         
-        alts = alts.merge(mutations, how="cross")
+        # Merge substitutions into FF using unversioned IDs
+        FF = pd.merge(
+            FF,
+            data[[f'{col}_unversioned' for col in id_cols] + [mutation_col]],
+            on=[f'{col}_unversioned' for col in id_cols],
+            how='right'
+        )
         
-        if len(alts) > 0:
+
+        # Function to check reference amino acids match
+        def check_reference_match(row):
+
+            if self.all_possible:
+                substitutions = row[mutation_col]
+            else:
+                substitutions = row[mutation_col].split()
+            sequence = row['sequence']
+
+            if isinstance(sequence, float) and np.isnan(sequence):
+                return False
             
-            alts["alignment_score"] = alts.apply(fasta.alignment_score, axis=1)
-            alts = alts[alts["alignment_score"]==1]
-            alts["num_mutations"] = alts["mutation"].str.split(" ").apply(len)
-            alts["length"] = alts["sequence"].apply(len)
-            alts = self.max_sequence_version(alts, fasta_seqs)
+            elif substitutions == None and self.all_possible:
+                return True
+
+            for sub in substitutions:
+                ref_aa, pos, alt_aa = sub[0], int(sub[1:-1]), sub[-1]
+                if pos <= len(sequence) and sequence[pos - 1] != ref_aa:
+                    return False
+            return True
+
+
+        # Filter sequences that match reference amino acids
+        matching_FF = FF[FF.apply(check_reference_match, axis=1)]
         
+        # Find highest version per unversioned ID in matching sequences
+        highest_version_FF = (
+            matching_FF.groupby([f'{col}_unversioned' for col in id_cols] + ["sequence", 'Memory Estimate (MB)', 'Time per Mutation (hrs)']).agg({
+                f"{col}_version":"max" for col in id_cols
+            })
+            .reset_index(drop=False)
+        )
+
+        # Merge data with the highest version entries from matching sequences in FF
+        merged_df = pd.merge(
+            data,
+            highest_version_FF,
+            on=[f'{col}_unversioned' for col in id_cols],
+            how='left'
+        )
         
-        return alts
+
+        # Filter best matching sequences with reference match
+        best_matches = merged_df[merged_df['sequence'].notna() & merged_df.apply(check_reference_match, axis=1)]
         
 
-    def map_unversioned_sequences(self, FF, data, col_mapping):
-        
-        data_id_col = col_mapping.get("id_column")
-        versioned_key = col_mapping.get("id_column")
-        unversioned_key = f"unversioned_{col_mapping.get('id_column')}"
+        # Versionize the non-versioned input IDs
+        for col in id_cols:
+            best_matches.loc[:, col] = best_matches.apply(lambda row: f"{row[col]}.{int(row[f'{col}_version'])}", axis=1)
 
-        FF[[f"{unversioned_key}","version"]] = FF[versioned_key].str.split(".", expand=True)
 
-        aligning = data.merge(FF, left_on=data_id_col, right_on=unversioned_key, how="left")
+        # Select relevant columns for output
+        output = best_matches[
+            id_cols + [mutation_col, 'sequence', 'Memory Estimate (MB)', 'Time per Mutation (hrs)']
+        ]
 
-        aligning["alignment_score"] = aligning.apply(lambda row: fasta.alignment_score(row, col_mapping), axis=1)
-
-        aligning = self.max_sequence_version(fasta=self.fasta, data=aligning, unversioned=unversioned_key)
-
-        alignment    = aligning[aligning["alignment_score"] == 1]
-
-        non_aligning = aligning[(aligning["alignment_score"]<1) & (~aligning[data_id_col].isin(alignment[data_id_col]))]
-
-        new_aligned = self.alt_sequences(non_aligning)
-
-        data = pd.concat([alignment,new_aligned])
-        
-        aligned = data[(data["alignment_score"] == 1)].drop("latest_version", axis=1)
-
-        aligned = self.cur_max_sequence_version(data=aligned)
-
-        data = aligned[aligned["version"]==aligned["latest_version"]]
+        return output
 
 
     def add_sequences(self, data, validation_results):
@@ -248,6 +254,12 @@ class Prepare:
             Ensembl_FF_grch38 = fasta.collect_ensembl_fasta(assembly="GRCh38")
             
             col_mapping["id_column"], versioned = get_protein_ids(Ensembl_FF_grch38)
+            
+            if not self.all_possible:
+                data = self.groupby_id(data, col_mapping=col_mapping)
+                pre_mapped_numbers = len(data)
+            else:
+                pre_mapped_numbers = len(data)
 
             if versioned:
             
@@ -260,34 +272,62 @@ class Prepare:
             else:
                 logger.info(f"Unversioned IDs used in input file. Finding the best matches in the FASTA file.")
 
-                data_grch37 = self.map_unversioned_sequences(Ensembl_FF_grch37, data, col_mapping)
+                data_grch37 = self.mapping_unversioned_sequence(Ensembl_FF_grch37, data, col_mapping)
                 unmapped_grch37 = len(data_grch37[data_grch37["sequence"].isna()])
 
-                data_grch38 = self.map_unversioned_sequences(Ensembl_FF_grch38, data, col_mapping)
+                data_grch38 = self.mapping_unversioned_sequence(Ensembl_FF_grch38, data, col_mapping)
                 unmapped_grch38 = len(data_grch38[data_grch38["sequence"].isna()])
 
-            # Return the sequence mapped dataframe with the least number of unmapped IDs            
+            # Return the sequence mapped dataframe with the least number of unmapped IDs
             data = data_grch38 if unmapped_grch38 <= unmapped_grch37 else data_grch37
-
         else:
             logger.info(f"Using FASTA file {self.__fasta}")
             fasta_seqs = fasta.read_fasta(self.__fasta)
             col_mapping["id_column"], versioned = get_protein_ids(fasta_seqs)
 
+            if not self.all_possible:
+                data = self.groupby_id(data, col_mapping=col_mapping)
+                pre_mapped_numbers = len(data)
+            else:
+                pre_mapped_numbers = len(data)
+
             if versioned:
                 data = data.merge(fasta_seqs, on=col_mapping["id_column"], how="left")
             else:
                 logger.info(f"Unversioned IDs used in input file. Finding the best matches in the FASTA file.")
-                data = self.map_unversioned_sequences(fasta_seqs, data, col_mapping)
+                data = self.mapping_unversioned_sequence(fasta_seqs, data, col_mapping)
 
         
         data = data.filter(items=col_mapping['id_column'] + [col_mapping['mutation_column'], "sequence", "Memory Estimate (MB)", "Time per Mutation (hrs)"])
         logger.info(f"Mapped to protein/transcript sequences using columns {', '.join(col_mapping['id_column'])}")
 
+        ## Check if any of the proteins are unmapped
+        data = self.check_unmapped(data, col_mapping, pre_mapped_numbers)
+
+        ## Check that everything is deduplicated
+        data = data.drop_duplicates()
+
+        ## Check that the sequences conform to MutPred2 standards
+        logger.info(f"Running sequence quality checks")
+        data = fasta.sequence_quality_check(data)
+
+        ## Collect all possible amino acid substitutions from mapped sequence if --all-possible flag is used
+        if self.all_possible:
+            logger.info(f"--all-possible selected. Collecting all possible amino acid substitutions.")
+            data = u.AminoAcidMap.get_all_possible_mutations(data, col_mapping)
+
+        ## Check that the sequences and mutations are concordant with MutPred2 expectations
+        logger.info(f"Running data quality checks of mutations")
+        data = fasta.data_quality_check(self, data, col_mapping)
+
         return data, col_mapping
 
 
-    def check_unmapped(self, data, col_mapping):
+    def check_unmapped(self, data, col_mapping, pre_mapped_numbers):
+        
+        if pre_mapped_numbers > len(data):
+            log_error_message = f"{pre_mapped_numbers - len(data)} proteins dropped during sequence mapping." 
+            logger.warning(f"{log_error_message}")
 
         unmapped = data[pd.isna(data["sequence"])]
         if len(unmapped) > 0:
@@ -311,12 +351,14 @@ class Prepare:
 
 
     def groupby_id(self, data, col_mapping):
-        
+
         id_col = col_mapping["id_column"]
         muts   = col_mapping["mutation_column"]
 
-        data = data[[id_col,muts,"sequence"]].drop_duplicates()
-        data = data.groupby([id_col])[muts].apply(' '.join).reset_index()
+        cols = id_col + [muts]
+
+        data = data[cols].drop_duplicates()
+        data = data.groupby(id_col)[muts].apply(' '.join).reset_index()
         data[f"num_{muts}"] = data[muts].str.split(" ").apply(lambda x: len(x))
         
         return data
@@ -370,34 +412,29 @@ class Prepare:
         
         ## Read in input data
         input_data = self.get_input()
+        #print (input_data)
+        #input_data = input_data.head(2000)
 
         ## Process input data for use with the MutPred Suite
         logger.info(f"Processing input data {self.get_input_path()}")
         self.variant_data, validation_results = process_input(input_data, canonical=self.canonical, all_possible=self.all_possible)
-            
 
         ## Add protein/transcript sequences
         logger.info(f"Mapping protein/transcript sequences")
         self.variant_data, col_mapping = self.add_sequences(self.variant_data, validation_results)
+        
+        #from random import sample, randint
 
-        ## Check if any of the proteins are unmapped
-        self.variant_data = self.check_unmapped(self.variant_data, col_mapping)
+        #self.variant_data["Substitution"] = self.variant_data["Substitution"].apply(lambda x: sample(x.split(" "), randint(1, 15)))
+        #self.variant_data["Substitution"] = self.variant_data["Substitution"].apply(lambda x: x.split(" "))
+        #self.variant_data = self.variant_data.explode("Substitution")
+        #self.variant_data["Ensembl_protein_id"] = self.variant_data["ENSP"].str.split(".").str[0]
+        #self.variant_data["Ensembl_transcript_id"] = self.variant_data["ENST"].str.split(".").str[0]
+        #self.variant_data["Ensembl_gene_id"] = self.variant_data["ENSG"].str.split(".").str[0]
+        #print (self.variant_data)
         
-        ## Collect all possible amino acid substitutions from mapped sequence if --all-possible flag is used
-        if self.all_possible:
-            logger.info(f"--all-possible selected. Collecting all possible amino acid substitutions.")
-            self.variant_data = u.AminoAcidMap.get_all_possible_mutations(self.variant_data, col_mapping)
-        else:
-            ## Group all mutations by protein/transcript
-            self.variant_data = self.groupby_id(self.variant_data, col_mapping)
+        #self.variant_data[["Ensembl_protein_id","Ensembl_transcript_id","Ensembl_gene_id","Substitution"]].sample(n=15000).to_csv("/Users/bergqt01/Research/MutPredPy/MutPredPy/test/test_data/test.ENSP_ENST_ENSG.txt", sep="\t", index=False)
         
-        ## Check that the sequences conform to MutPred2 standards
-        logger.info(f"Running sequence quality checks")
-        self.variant_data = fasta.sequence_quality_check(self.variant_data)
-        
-        ## Check that the sequences and mutations are concordant with MutPred2 expectations
-        logger.info(f"Running data quality checks of mutations")
-        self.variant_data = fasta.data_quality_check(self, self.variant_data, col_mapping)
 
         # TODO: filter out already scored mutations
         #self.variant_data = self.filtered_scored(self.variant_data)
