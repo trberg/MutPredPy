@@ -81,13 +81,15 @@ def merge(
 @app.command()
 def catalog(
     job_dir: str = typer.Option(..., help="Path to MutPred2 jobs directory"),
+    mechanisms: bool = typer.Option(False, help="Include mechanisms in the cataloging process"),
     dry_run: bool = typer.Option(False, help="Run merging process without saving output")
 ):
     """Catalog all mutpred scores from a given job directory"""
     Catalog(
-        job_dir=job_dir, 
+        job_dir=job_dir,
+        mechanisms=mechanisms,
         dry_run=dry_run
-    )
+    ).catalog_jobs()
 
 def main():
     app()
