@@ -97,7 +97,7 @@ class Prepare:
     
 
     def get_base(self):
-        return self.__input.split("/")[-1].split(".")[0]
+        return ".".join(str(self.get_input_path()).split("/")[-1].split(".")[:-1])
     
     def get_time(self):
         return self.__time
