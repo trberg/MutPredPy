@@ -4,7 +4,6 @@ locations:
   local:
     mutpred2_path: "/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev"
     catalog: "/Users/bergqt01/Research/Scratch/Testing/mutpred_catalog"
-    null_distribution: "/Users/bergqt01/Research/MutPredPy/resources/data/pu_features_null_distributions.mat"
   minerva:
     mutpred2_path: "/sc/arion/projects/pejaverlab/IGVF/src/mutpred2_dev"
     catalog: "/sc/arion/projects/pejaverlab/lab_data/mutpred2"
