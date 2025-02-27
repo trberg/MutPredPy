@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import os
 import re
-import math
 from Bio import SeqIO
 import importlib.resources as pkg_resources
 import logging
@@ -17,15 +16,19 @@ class Protein:
     protein_transcript_regex = {
         "HGVSp":    re.compile(r"\bENSP\d{9,}(\.\d+)?:p.[A-Za-z]+\d+[A-Za-z]+\b"),
         "HGVSc":    re.compile(r"\bENST\d{9,}(\.\d+)?:c.\d+[NGCTAngcta]+>[NGCTAngcta]+\b"),
-        "ENSP":     re.compile(r"\bENSP\d{9,}(\.\d+)?\b"),
+        "ENSP":     re.compile(r"\bENSP\d{9,}((\.|\_)\d+)?\b"),
         "ENST":     re.compile(r"\bENST\d{9,}(\.\d+)?\b"),
         "ENSG":     re.compile(r"\bENSG\d{9,}(\.\d+)?\b"),
         "Uniprot":  re.compile(r"\b([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9])){1,2}(-\d{1,2})?\b"),
         "RefSeq_p": re.compile(r"\b[ANYXW]P\_\d+(\.\d+)?\b"),
         "RefSeq_r": re.compile(r"\b[NX]M\_\d+(\.\d+)?\b"),
         "RefSeq_g": re.compile(r"\b[AN][CGTWZ]\_\d+(\.\d+)?\b")
-
     }
+    all_protein_transcript_gene_ids = [
+        "ENSP","ENST","ENSG","Uniprot",
+        "RefSeq_p","RefSeq_r","RefSeq_g"
+    ]
+
 
     @staticmethod
     def identify_ids(info: str):
@@ -54,6 +57,38 @@ class Protein:
         # Return the dictionary containing the results for all ID types
         return results
 
+    @staticmethod
+    def split_mutpred_output_ids(output: pd.DataFrame):
+
+        protein_patterns = Protein.protein_transcript_regex
+        ptg_ids = Protein.all_protein_transcript_gene_ids
+        
+        master_protein_key = '|'.join([p.pattern for p in protein_patterns.values()])
+        
+        detected_order = []
+        
+        ID = output["ID"][0]
+        if "|" in ID:
+            pass
+        elif "_batch" in ID:
+            output["ID"] = output["ID"].str.split("_batch").str[0].str.replace("_",".")
+            ID = output["ID"][0]
+
+        for match in re.finditer(master_protein_key, ID):
+            found_protein = match.group()
+            for id_type,pattern in protein_patterns.items():
+                if re.match(pattern, found_protein) and id_type not in detected_order:
+                    detected_order.append(id_type)
+        
+        
+        output[detected_order] = output["ID"].str.split("|", expand=True)
+
+        for prot in ptg_ids:
+            if prot not in detected_order:
+                output[prot] = None
+
+
+        return output[ptg_ids + ["sequence_hash"]]
 
 
 def check_sequences(row, col_mapping):

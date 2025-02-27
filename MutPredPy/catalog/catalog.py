@@ -10,7 +10,8 @@ import logging
 from numba import njit, prange
 
 from ..utils import utils as u
-from ..fasta import fasta
+from ..fasta import fasta, Protein
+
 
 class Catalog:
 
@@ -26,7 +27,7 @@ class Catalog:
 
         if self.mechanisms:
 
-            self.NEUTRAL_PROPERTIES = pkg_resources.files("mutpredpy").joinpath(f"pkg_resources/pu_features_null_distributions.mat")
+            self.NEUTRAL_PROPERTIES = sio.loadmat(pkg_resources.files("mutpredpy").joinpath(f"pkg_resources/pu_features_null_distributions.mat"))
             self.neutral_property_cols = [neuts[0].replace("-","_") for neuts in self.NEUTRAL_PROPERTIES.get("neut_properties").flatten()]
 
             neutral_property_gain_cols = np.array([self.neutral_property_cols.index(col) for col in self.neutral_property_cols if col.endswith("_gain") or col == "Stability"])
@@ -376,7 +377,7 @@ class Catalog:
             if os.path.exists(property_scores) and os.path.exists(property_pvalues):
                 
                 properties = self.get_property_scores_and_pvalues(job, mutations)
-                propX = self.vectorized_get_properties_from_propX(job, mutations)
+                #propX = self.vectorized_get_properties_from_propX(job, mutations)
                 
                 #propX = self.get_properties_from_propX(job, mutations)
                 #print ("Got propX properties scores")
@@ -436,12 +437,12 @@ class Catalog:
                 "MutPred2 Score": row["MutPred2 score"]
             }
 
-        mutation_path = os.path.join(self.catalog_location, row["sequence_hash"], pos, alt)
+        mutation_path = os.path.join(self.catalog_location, "scores", row["sequence_hash"], pos, alt)
         if self.dry_run:
             #logging.info(f"Would've created catalog directory {mutation_path}")
             pass
         else:
-            os.makedirs(mutation_path)
+            os.makedirs(mutation_path, exist_ok=True)
 
         mutpred_output_yaml_path = os.path.join(mutation_path, "mutpred2_output.yaml")
         if self.dry_run:
@@ -454,13 +455,25 @@ class Catalog:
                 yaml.dump(mutpred_data, yaml_file, default_flow_style=False, sort_keys=False)
         
 
+    def print_progress(self, cur_job, number_of_jobs, end="\r"):
+        cur_percentage = cur_job/number_of_jobs
+        cur_progress = int(50*cur_percentage)
+        remaining_progress = 50 - cur_progress
+        print (f" [{'=' * cur_progress}{' ' * remaining_progress}] {round((cur_percentage)*100, 1)}%", end=end)
+
 
     def catalog_jobs(self):
+        
+        catalog_index = []
 
         job_dirs = os.listdir(self.job_dir)
         #job_dirs = ["1","2","69","263"]
+        number_of_jobs = len(job_dirs)
+        cur_job = 0
+        self.print_progress(cur_job, number_of_jobs)
+        
         for job in job_dirs:
-            print (job)
+            
             
             output_path = os.path.join(self.job_dir, job, "output.txt")
             input_path = os.path.join(self.job_dir, job, "input.faa")
@@ -496,7 +509,20 @@ class Catalog:
 
             sequenced_data.apply(lambda row: self.write_mutation_to_catalog(row), axis=1)
 
+            cur_index = Protein.split_mutpred_output_ids(sequenced_data[["ID","sequence_hash"]].drop_duplicates())
 
+            catalog_index.append(cur_index)
+
+            cur_job += 1
+            self.print_progress(cur_job, number_of_jobs)
+
+        else:
+            self.print_progress(cur_job, number_of_jobs, end="\n")
+        
+        catalog_index = pd.concat(catalog_index)
+        
+        return catalog_index.drop_duplicates()
+    
 
 
 if __name__=="__main__":

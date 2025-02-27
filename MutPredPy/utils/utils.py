@@ -2,7 +2,6 @@ import hashlib
 import yaml
 import re
 import os
-import yaml
 import logging
 logger = logging.getLogger()
 
