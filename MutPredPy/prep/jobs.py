@@ -149,10 +149,6 @@ def split_data(prepare, data, col_mapping, file_number=1):
             memory = []
             file_number += 1
             
-    # Final job info recording
-    #if memory:
-    #    record_job_info(file_number, job_time, memory)
-    #    write_sequence(row, file_number, job_time, "FINAL JOB")
 
     # Convert job information to a DataFrame and categorize memory usage
     job_information = pd.DataFrame(job_information)
