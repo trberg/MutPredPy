@@ -394,6 +394,15 @@ class Catalog:
         return output_mechanisms
 
     def collect_mechanisms(self, job):
+        """
+        Collects molecular mechanisms from MutPred2 output files.
+
+        Args:
+            job (str): Path to the job directory.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing mechanisms and their associated probabilities.
+        """
 
         mutations = os.path.join(job, "output.txt.substitutions.mat")
         muts_df = sio.loadmat(f"{mutations}").get("substitutions")
@@ -405,7 +414,7 @@ class Catalog:
             ]
         )
 
-        propX_pu = os.path.join(job, "output.txt.propX_pu_1.mat")
+        propx_pu = os.path.join(job, "output.txt.propX_pu_1.mat")
         property_scores = os.path.join(job, "output.txt.prop_scores_pu_1.mat")
         property_pvalues = os.path.join(job, "output.txt.prop_pvals_pu_1.mat")
 
@@ -429,7 +438,7 @@ class Catalog:
 
                 return properties
 
-            elif os.path.exists(propX_pu):
+            elif os.path.exists(propx_pu):
 
                 properties = self.vectorized_get_properties_from_propx(job, mutations)
 
@@ -439,7 +448,16 @@ class Catalog:
             return pd.DataFrame()
 
     def write_mutation_to_catalog(self, row):
+        """
+        Writes mutation data to the catalog directory in YAML format.
 
+        Args:
+            row (pd.Series): A Pandas Series containing mutation details including
+                            substitution, MutPred2 score, and mechanisms.
+
+        Returns:
+            None
+        """
         mutation = row["Substitution"]
         pos = re.search(r"\d+", mutation).group()
         _, alt = mutation.split(pos)
@@ -476,6 +494,17 @@ class Catalog:
                 )
 
     def print_progress(self, cur_job, number_of_jobs, end="\r"):
+        """
+        Displays a progress bar for tracking job completion.
+
+        Args:
+            cur_job (int): The current job index.
+            number_of_jobs (int): The total number of jobs.
+            end (str, optional): The end character for the print statement. Defaults to "\r".
+
+        Returns:
+            None
+        """
         cur_percentage = cur_job / number_of_jobs
         cur_progress = int(50 * cur_percentage)
         remaining_progress = 50 - cur_progress
@@ -485,11 +514,17 @@ class Catalog:
         )
 
     def catalog_jobs(self):
+        """
+        Processes all jobs in the directory, extracting relevant features,
+        and stores the information in the catalog.
 
+        Returns:
+            pd.DataFrame: DataFrame containing cataloged job information.
+        """
         catalog_index = []
 
         job_dirs = os.listdir(self.job_dir)
-        # job_dirs = ["1","2","69","263"]
+
         number_of_jobs = len(job_dirs)
         cur_job = 0
         self.print_progress(cur_job, number_of_jobs)
@@ -543,9 +578,7 @@ class Catalog:
                 u.get_seq_hash
             )
 
-            sequenced_data.apply(
-                lambda row: self.write_mutation_to_catalog(row), axis=1
-            )
+            sequenced_data.apply(self.write_mutation_to_catalog, axis=1)
 
             cur_index = Protein.split_mutpred_output_ids(
                 sequenced_data[["ID", "sequence_hash"]].drop_duplicates()
