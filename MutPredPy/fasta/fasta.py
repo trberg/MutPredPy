@@ -1,15 +1,25 @@
-import pandas as pd
-import numpy as np
+"""
+FASTA Module for MutPredPy
+
+This module provides functions for handling and processing protein sequences
+from FASTA files, including reading, validation, and quality control.
+"""
+
 import os
 import re
-from Bio import SeqIO
+
 import importlib.resources as pkg_resources
 import logging
 
-logger = logging.getLogger()
+import pandas as pd
+import numpy as np
+
+from Bio import SeqIO
 
 from ..computing import lsf
 from ..utils import utils as u
+
+logger = logging.getLogger()
 
 
 class Protein:
@@ -89,14 +99,14 @@ class Protein:
 
         detected_order = []
 
-        ID = output["ID"][0]
-        if "|" in ID:
+        cur_id = output["ID"][0]
+        if "|" in cur_id:
             pass
-        elif "_batch" in ID:
+        elif "_batch" in cur_id:
             output["ID"] = output["ID"].str.split("_batch").str[0].str.replace("_", ".")
-            ID = output["ID"][0]
+            cur_id = output["ID"][0]
 
-        for match in re.finditer(master_protein_key, ID):
+        for match in re.finditer(master_protein_key, cur_id):
             found_protein = match.group()
             for id_type, pattern in protein_patterns.items():
                 if re.match(pattern, found_protein) and id_type not in detected_order:
@@ -141,7 +151,8 @@ def check_sequences(row, col_mapping):
     # Sequence length validation
     if len(sequence) < max_position:
         errors["Sequence Errors"].append(
-            f"Sequence length ({len(sequence)}) is shorter than max mutation position ({max_position})."
+            f"Sequence length ({len(sequence)}) is shorter than max mutation position \
+            ({max_position})."
         )
 
     if len(sequence) < 30:
@@ -220,7 +231,7 @@ def data_quality_check(prepare, data, col_mapping):
     )
 
     ## Check if any sequences are invalid
-    not_passed = data[data["status"] == False]
+    not_passed = data[data["status"] is False]
     if not not_passed.empty:
 
         ## Log errors
