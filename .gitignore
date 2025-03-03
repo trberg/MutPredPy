@@ -3,8 +3,13 @@ inputs/
 intermediates/
 logs/
 scores/
+scripts/
+tools/
 MutPredPy/__pycache__/
+mutpredpy/__pycache__/
+mutpred_temp/__pycache__/
 resources/
+mutpred_temp/pkg_resources/pu_features_null_distributions.mat
 *.csv
 run_mutpred.sh
 
@@ -171,4 +176,3 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-mutpred_temp/pkg_resources/pu_features_null_distributions.mat
