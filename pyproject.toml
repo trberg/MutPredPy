@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -22,7 +22,7 @@ Homepage = "https://github.com/trberg/MutPredPy/"
 Issues = "https://github.com/trberg/MutPredPy/issues"
 
 [project.scripts]
-mutpredpy = "mutpredpy.__main__:main"
+mutpredpy = "MutPredPy.__main__:main"
 
 
 [tool.setuptools]
