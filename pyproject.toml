@@ -22,7 +22,7 @@ Homepage = "https://github.com/trberg/MutPredPy/"
 Issues = "https://github.com/trberg/MutPredPy/issues"
 
 [project.scripts]
-mutpredpy = "MutPredPy.__main__:main"
+mutpredpy = "MutPredPy.MutPredPy.__main__:main"
 
 
 [tool.setuptools]
@@ -31,7 +31,7 @@ include-package-data = true
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
-version = {attr = "MutPredPy.__version__"}
+version = {attr = "mutpredpy.__version__"}
 
 [tool.setuptools.package-data]
 "mutpredpy" = ["pkg_resources/sequence_time.npy","pkg_resources/memory_usage.npy","pkg_resources/Homo_sapiens.GRCh38.combined.pep.all.fa","pkg_resources/Homo_sapiens.GRCh37.combined.pep.all.fa","pkg_resources/pu_features_null_distributions.mat","config.yaml"]
