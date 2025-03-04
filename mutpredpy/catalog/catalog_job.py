@@ -7,7 +7,17 @@ import pandas as pd
 from .mechanisms import Mechanisms
 
 
-class Catalog_Job:
+class CatalogJob:
+    """
+    Handles job-specific cataloging operations for MutPred2.
+
+    This class processes MutPred2 job outputs, extracting relevant data
+    including mutations, mechanisms, motifs, and sequence positions.
+
+    Attributes:
+        job_path (str): The path to the job directory.
+        catalog (Catalog): Instantiated Catalog object.
+    """
 
     remarks_list = [
         "Sequence length less than 30 residues",
@@ -35,10 +45,21 @@ class Catalog_Job:
         )
 
     def get_job_path(self):
+        """
+        Retrieves the job directory path.
+
+        Returns:
+            str: The absolute path of the job directory.
+        """
         return self.__job_path
 
     def get_mutations(self):
+        """
+        Extracts mutation data from the job's MutPred2 output file.
 
+        Returns:
+            np.ndarray: An array of mutation identifiers.
+        """
         mutations = os.path.join(self.get_job_path(), "output.txt.substitutions.mat")
         muts_df = sio.loadmat(f"{mutations}").get("substitutions")
         mutations = np.array(
@@ -51,12 +72,28 @@ class Catalog_Job:
         return mutations
 
     def get_features(self):
-        pass
+        """
+        Placeholder method for extracting feature-related data from MutPred2 output files.
+
+        Returns:
+            None
+        """
 
     def get_mechanism_types(self):
-        pass
+        """
+        Placeholder method for extracting mechanism types associated with mutations.
+
+        Returns:
+            None
+        """
 
     def get_sequences(self):
+        """
+        Extracts protein sequences from the MutPred2 output file.
+
+        Returns:
+            list: A list of sequence strings extracted from the job's output.
+        """
         sequences = sio.loadmat(
             os.path.join(self.get_job_path(), "output.txt.sequences.mat")
         ).get("sequences")
@@ -70,7 +107,13 @@ class Catalog_Job:
         return sequence_strings
 
     def get_positions(self):
+        """
+        Extracts position data for mutations from MutPred2 output files.
 
+        Returns:
+            np.ndarray: A nested array containing formatted position information
+                        for each sequence.
+        """
         if hasattr(self, "_positions"):
             return self._positions
 
@@ -93,7 +136,12 @@ class Catalog_Job:
         return positions
 
     def get_motifs(self):
+        """
+        Extracts motif-related information from MutPred2 output files.
 
+        Returns:
+            list: A list of motif strings extracted from the job's output.
+        """
         motifs = [
             sio.loadmat(
                 os.path.join(self.get_job_path(), f"output.txt.motif_info_{i+1}.mat")
@@ -111,7 +159,12 @@ class Catalog_Job:
         return motif_strings
 
     def get_notes(self):
+        """
+        Extracts and maps notes related to mutations from MutPred2 output files.
 
+        Returns:
+            list: A list of formatted remark strings corresponding to mutation-related notes.
+        """
         note_indices = np.vstack(
             [
                 sio.loadmat(

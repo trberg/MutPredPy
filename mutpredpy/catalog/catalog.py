@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 
-from .catalog_job import Catalog_Job
+from .catalog_job import CatalogJob
 from ..utils import utils as u
 from ..fasta import fasta, Protein
 
@@ -235,8 +235,8 @@ class Catalog:
         for job in job_dirs:
 
             job_path = os.path.join(self.job_dir, job)
-            catalog_job = Catalog_Job(job_path, self)
-            job_info = catalog_job.process_job()
+            catalog_job = CatalogJob(job_path, self)
+            job_info = catalog_job.process_job(self)
             catalog_index.append(job_info)
 
             # output_path = os.path.join(self.job_dir, job, "output.txt")

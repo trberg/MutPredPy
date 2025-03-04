@@ -1,10 +1,18 @@
+"""
+LSF Module for MutPredPy
 
+This module provides functions for managing job scheduling and resource allocation
+on LSF (Load Sharing Facility) systems, including memory and time estimation,
+job splitting, and parallel execution.
+"""
+
+import importlib.resources as pkg_resources
 from string import Template
 import os
-import numpy as np
 import logging
+import numpy as np
 import pandas as pd
-import importlib.resources as pkg_resources
+
 
 from ..utils import utils as u
 
@@ -16,16 +24,17 @@ TIME_CUSHION = 6  # Additional time buffer (hours)
 CORES = 4  # Number of CPU cores
 logger = logging.getLogger()
 
+
 # ==========================
 # 📝 TEMPLATE LOADING
 # ==========================
 def load_template(template_name):
     """
     Loads a template file from the 'templates/' directory.
-    
+
     Args:
         template_name (str): The template filename.
-    
+
     Returns:
         Template: A string Template object.
 
@@ -38,15 +47,15 @@ def load_template(template_name):
     template_path = os.path.join(template_dir, template_name)
 
     if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Template file '{template_path}' not found in '{template_dir}'.")
-
-    
+        raise FileNotFoundError(
+            f"Template file '{template_path}' not found in '{template_dir}'."
+        )
 
     try:
-        with open(template_path, "r") as file:
+        with open(template_path, "r", encoding="utf-8") as file:
             content = file.read().strip()
     except IOError as e:
-        raise IOError(f"Error reading template file '{template_path}': {e}")
+        raise IOError(f"Error reading template file '{template_path}': {e}") from e
 
     if not content:
         raise ValueError(f"Template file '{template_path}' is empty.")
@@ -60,10 +69,10 @@ def load_template(template_name):
 def build_job_array(jobs):
     """
     Converts a list of job indices into an LSF job array format.
-    
+
     Args:
         jobs (list): List of job indices.
-    
+
     Returns:
         str: Job array string in LSF format.
     """
@@ -88,7 +97,6 @@ def memory_estimate_function():
         np.poly1d: Polynomial function to estimate memory usage.
     """
     path = pkg_resources.files("mutpredpy").joinpath("pkg_resources/memory_usage.npy")
-    #path = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/memory_usage.npy"))
     return np.poly1d(np.load(path))
 
 
@@ -99,8 +107,8 @@ def time_estimate_function():
         np.poly1d: Polynomial function to estimate runtime.
     """
     path = pkg_resources.files("mutpredpy").joinpath("pkg_resources/sequence_time.npy")
-    #path = os.path.abspath(resource_filename(Requirement.parse("MutPredPy"), "MutPredPy/resources/sequence_time.npy"))
     return np.poly1d(np.load(path))
+
 
 # ==========================
 # 📊 USAGE REPORT
@@ -108,7 +116,7 @@ def time_estimate_function():
 def usage_report(tech_requirements):
     """
     Generates and prints a usage report based on memory and time estimates.
-    
+
     Args:
         tech_requirements (DataFrame): Dataframe containing memory and time requirements.
     """
@@ -121,23 +129,33 @@ def usage_report(tech_requirements):
     def compute_usage(jobs):
         if len(jobs) == 0:
             return 0, 0
-        return (max(jobs["Memory Minimum"]) + MEMORY_CUSHION) * len(jobs), max(jobs["Time Estimate"]) + TIME_CUSHION
+        return (max(jobs["Memory Minimum"]) + MEMORY_CUSHION) * len(jobs), max(
+            jobs["Time Estimate"]
+        ) + TIME_CUSHION
 
     high_mem_usage, high_time_usage = compute_usage(high_memory)
     mid_mem_usage, mid_time_usage = compute_usage(mid_memory)
     norm_mem_usage, norm_time_usage = compute_usage(normal_jobs)
 
     # Generate report using template
-    report = load_template("report_template.txt").substitute({
-        "nmu": norm_mem_usage // 1000, "nt": norm_time_usage, "nj": len(normal_jobs),
-        "mmu": mid_mem_usage // 1000, "mt": mid_time_usage, "mj": len(mid_memory),
-        "hmu": high_mem_usage // 1000, "ht": high_time_usage, "hj": len(high_memory),
-        "tmu": (high_mem_usage + mid_mem_usage + norm_mem_usage) // 1000,
-        "tt": max(norm_time_usage, high_time_usage, mid_time_usage),
-        "tj": len(normal_jobs) + len(high_memory) + len(mid_memory)
-    })
+    report = load_template("report_template.txt").substitute(
+        {
+            "nmu": norm_mem_usage // 1000,
+            "nt": norm_time_usage,
+            "nj": len(normal_jobs),
+            "mmu": mid_mem_usage // 1000,
+            "mt": mid_time_usage,
+            "mj": len(mid_memory),
+            "hmu": high_mem_usage // 1000,
+            "ht": high_time_usage,
+            "hj": len(high_memory),
+            "tmu": (high_mem_usage + mid_mem_usage + norm_mem_usage) // 1000,
+            "tt": max(norm_time_usage, high_time_usage, mid_time_usage),
+            "tj": len(normal_jobs) + len(high_memory) + len(mid_memory),
+        }
+    )
 
-    logger.info('\n%s\n', report)
+    logger.info("\n%s\n", report)
 
 
 # ==========================
@@ -158,9 +176,12 @@ def split_for_multiple_users(tech_requirements, users):
     user_outputs = []
 
     for user in range(users):
-        user_jobs = pd.concat([
-            tech_requirements[tech_requirements[cat]].iloc[user::users] for cat in categories
-        ])
+        user_jobs = pd.concat(
+            [
+                tech_requirements[tech_requirements[cat]].iloc[user::users]
+                for cat in categories
+            ]
+        )
         user_outputs.append(user_jobs)
 
     return user_outputs
@@ -170,7 +191,6 @@ def split_for_multiple_users(tech_requirements, users):
 # 🏗️ LSF CONFIG FILE GENERATION
 # ==========================
 def build_lsf_config_file(prepare, tech_requirements, user):
-
     """
     Generates LSF configuration files based on job requirements.
 
@@ -181,8 +201,12 @@ def build_lsf_config_file(prepare, tech_requirements, user):
         user (int): User index.
         dry_run (bool): If True, only prints the output instead of writing to files.
     """
-    
-    job_types = [("normal", "Normal Memory"), ("middle", "Middle Memory"), ("high", "High Memory")]
+
+    job_types = [
+        ("normal", "Normal Memory"),
+        ("middle", "Middle Memory"),
+        ("high", "High Memory"),
+    ]
 
     for job_type, category in job_types:
         jobs = tech_requirements[tech_requirements[category]]
@@ -190,33 +214,36 @@ def build_lsf_config_file(prepare, tech_requirements, user):
             continue
 
         # Load LSF template and substitute values
-        config_content = load_template("lsf_configuration_template.txt").substitute({
-            "mem": int((max(jobs["Memory Minimum"]) + MEMORY_CUSHION) / CORES),
-            "time": f"{int(max(jobs['Time Estimate'])) + TIME_CUSHION}:00",
-            "job": f"{prepare.get_base()}_variants",
-            "job_array": build_job_array(jobs["File"]),
-            "jobs_dir": prepare.get_jobs_directory(),
-            "logs_dir": prepare.get_log_folder(),
-            "base": prepare.get_base(),
-            "index": "$LSB_JOBINDEX"
-        })
+        config_content = load_template("lsf_configuration_template.txt").substitute(
+            {
+                "mem": int((max(jobs["Memory Minimum"]) + MEMORY_CUSHION) / CORES),
+                "time": f"{int(max(jobs['Time Estimate'])) + TIME_CUSHION}:00",
+                "job": f"{prepare.get_base()}_variants",
+                "job_array": build_job_array(jobs["File"]),
+                "jobs_dir": prepare.get_jobs_directory(),
+                "logs_dir": prepare.get_log_folder(),
+                "base": prepare.get_base(),
+                "index": "$LSB_JOBINDEX",
+            }
+        )
 
         # Ensure scripts directory exists
         scripts_dir = os.path.join(prepare.get_working_dir(), "scripts")
-        scripts_dir,prepare.logging_status["script_directory"] = u.create_directory(scripts_dir, prepare.dry_run, prepare.logging_status.get("script_directory"))
-        
+        scripts_dir, prepare.logging_status["script_directory"] = u.create_directory(
+            scripts_dir, prepare.dry_run, prepare.logging_status.get("script_directory")
+        )
 
         # Define output file name
-        output_file = os.path.join(scripts_dir, f"{prepare.get_base()}_{user}_{job_type}.lsf")
+        output_file = os.path.join(
+            scripts_dir, f"{prepare.get_base()}_{user}_{job_type}.lsf"
+        )
 
-        logger.info('\n%s\n\n', config_content)
-        
+        logger.info("\n%s\n\n", config_content)
 
         # Write to file if not in dry run mode
         if prepare.dry_run:
             logger.dry_run(f"LSF scripts would be written to {output_file}")
         else:
-            logger.info(f"LSF scripts written to {output_file}")
-            with open(output_file, "w") as file:
+            logger.info("LSF scripts written to %s", output_file)
+            with open(output_file, "w", encoding="utf-8") as file:
                 file.write(config_content)
-            
