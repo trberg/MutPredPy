@@ -4,6 +4,7 @@ from .fasta import (
     alignment_score,
     read_mutpred_input_fasta,
     Protein,
+    read_fasta,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "alignment_score",
     "read_mutpred_input_fasta",
     "Protein",
+    "read_fasta",
 ]

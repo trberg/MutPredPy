@@ -34,6 +34,7 @@ class Prepare:
         dry_run,
         canonical,
         all_possible,
+        truncate,
         verbose,
         users,
         fasta_path,
@@ -45,10 +46,10 @@ class Prepare:
         self.logging_status = {
             "working_dir": False,
             "jobs_directory": False,
-            "job_folder": dict(),
+            "job_folder": {},
             "log_directory": False,
             "script_directory": False,
-            "input_faa_files": dict(),
+            "input_faa_files": {},
         }
 
         self.__working_dir = working_dir
@@ -58,6 +59,8 @@ class Prepare:
 
         self.dry_run = dry_run
         self.all_possible = all_possible
+        self.truncate = True if truncate < 199999 else False
+        self.truncate_threshold = truncate
         self.users = users
 
         self.__fasta_file_number_start = self.set_fasta_file_number_start()
@@ -87,7 +90,10 @@ class Prepare:
 
         else:
             logger.info(
-                f"File input {self.__input} not found...trying {self.get_working_dir()}/{self.__input}"
+                "File input %s not found...trying %d/%s",
+                self.__input,
+                self.get_working_dir(),
+                self.__input,
             )
             path = f"{self.get_working_dir()}/{self.__input}"
 
@@ -161,7 +167,7 @@ class Prepare:
         Returns:
             str: Base name of the input file.
         """
-        return ".".join(str(self.get_input_path()).split("/")[-1].split(".")[:-1])
+        return ".".join(self.get_input_path().stem.split(".")[:-1])
 
     def get_time(self):
         """
@@ -328,7 +334,7 @@ class Prepare:
         # Versionize the non-versioned input IDs
         for col in id_cols:
             best_matches.loc[:, col] = best_matches.apply(
-                lambda row: f"{row[col]}.{int(row[f'{col}_version'])}", axis=1
+                lambda row, col=col: f"{row[col]}.{int(row[f'{col}_version'])}", axis=1
             )
 
         # Select relevant columns for output
@@ -350,7 +356,8 @@ class Prepare:
 
         Args:
             data (pd.DataFrame): DataFrame containing mutation data.
-            validation_results (dict): Dictionary containing validation results for protein and transcript IDs.
+            validation_results (dict): Dictionary containing validation
+                                results for protein and transcript IDs.
 
         Returns:
             tuple: A tuple containing:
@@ -381,7 +388,15 @@ class Prepare:
                 return protein_ids, False
 
             raise ValueError(
-                f"Input columns {', '.join([p for p in validation_results.keys() if validation_results[p]['found']])} not found in FASTA file"
+                f"Input columns {0} not found in FASTA file".format(
+                    ", ".join(
+                        [
+                            p
+                            for p in validation_results.keys()
+                            if validation_results[p]["found"]
+                        ]
+                    )
+                )
             )
 
         col_mapping = {"mutation_column": "Substitution"}
@@ -416,7 +431,8 @@ class Prepare:
 
             else:
                 logger.info(
-                    "Unversioned IDs used in input file. Finding the best matches in the FASTA file."
+                    "Unversioned IDs used in input file. Finding \
+                            the best matches in the FASTA file."
                 )
 
                 data_grch37 = self.mapping_unversioned_sequence(
@@ -446,7 +462,8 @@ class Prepare:
                 data = data.merge(fasta_seqs, on=col_mapping["id_column"], how="left")
             else:
                 logger.info(
-                    "Unversioned IDs used in input file. Finding the best matches in the FASTA file."
+                    "Unversioned IDs used in input file. \
+                        Finding the best matches in the FASTA file."
                 )
                 data = self.mapping_unversioned_sequence(fasta_seqs, data, col_mapping)
 
@@ -460,7 +477,8 @@ class Prepare:
             ]
         )
         logger.info(
-            "Mapped to protein/transcript sequences using columns {', '.join(col_mapping['id_column'])}"
+            "Mapped to protein/transcript sequences using columns %s",
+            ", ".join(col_mapping["id_column"]),
         )
 
         ## Check if any of the proteins are unmapped
@@ -473,7 +491,8 @@ class Prepare:
         logger.info("Running sequence quality checks")
         data = fasta.sequence_quality_check(data)
 
-        ## Collect all possible amino acid substitutions from mapped sequence if --all-possible flag is used
+        ## Collect all possible amino acid substitutions from mapped sequence
+        ## if --all-possible flag is used
         if self.all_possible:
             logger.info(
                 "--all-possible selected. Collecting all possible amino acid substitutions."
@@ -502,16 +521,22 @@ class Prepare:
             Exception: If no proteins are successfully mapped.
         """
         if pre_mapped_numbers > len(data):
-            log_error_message = f"{pre_mapped_numbers - len(data)} proteins dropped during sequence mapping."
+            log_error_message = (
+                "%s proteins dropped during sequence mapping.",
+                pre_mapped_numbers - len(data),
+            )
             logger.warning("%s", log_error_message)
 
         unmapped = data[pd.isna(data["sequence"])]
         if len(unmapped) > 0:
 
             ## Log missing proteins/transcripts
-            log_error_message = f"{len(unmapped)} proteins have been dropped. No matching protein sequences found."
+            log_error_message = f"{len(unmapped)} proteins have been dropped. No matching \
+                protein sequences found."
             logger.warning(
-                f"{log_error_message} (additional info in {self.get_log_folder()}/errors.log)"
+                "%s (additional info in %d/errors.log)",
+                log_error_message,
+                self.get_log_folder(),
             )
 
             if self.dry_run:
@@ -584,7 +609,7 @@ class Prepare:
         """
         estimated_time = str(np.sum(data["Time Estimate (hrs)"].values))
 
-        total_hours = int(estimated_time.split(".")[0]) + 1
+        total_hours = int(estimated_time.split(".", maxsplit=1)[0]) + 1
 
         return total_hours
 
@@ -650,6 +675,7 @@ class Prepare:
         logger.info("Mapping protein/transcript sequences")
         variant_data, col_mapping = self.add_sequences(variant_data, validation_results)
 
+        # pylint: disable=W0511
         # TODO: filter out already scored mutations
         # self.variant_data = self.filtered_scored(self.variant_data)
 
@@ -661,7 +687,8 @@ class Prepare:
             axis=1,
         )
 
-        ## Calculate the computational resources and number of parallel jobs necessary to complete the MutPred runs in the designated time.
+        ## Calculate the computational resources and number of parallel jobs necessary to
+        ## complete the MutPred runs in the designated time.
         logger.info("Calculating resource requirements and parallelizing jobs")
         tech_requirements = split_data(
             self,

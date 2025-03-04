@@ -39,10 +39,14 @@ def prepare(
     input_file: str = typer.Option(help="Path to the input file"),
     working_dir: str = typer.Option(help="Path to output directory"),
     time: int = typer.Option(24, callback=time_minimum, help="Target time in hours"),
-    dry_run: bool = typer.Option(False, help="Perform a dry run without writing files"),
     canonical: bool = typer.Option(False, help="Only prepare canonical isoforms"),
     all_possible: bool = typer.Option(
         False, help="Prepare all possible amino acid substitutions"
+    ),
+    truncate: int = typer.Option(
+        200000,
+        help="Break up sequences into 100 AA windows on sequences \
+            of length greater the input number.",
     ),
     verbose: bool = typer.Option(
         False,
@@ -50,12 +54,15 @@ def prepare(
     ),
     users: int = typer.Option(
         1,
-        help="Designates how many users will be running the MutPred2 scripts to better parallelize the jobs.",
+        help="Designates how many users will be running the \
+            MutPred2 scripts to better parallelize the jobs.",
     ),
     fasta: str = typer.Option(
         "",
-        help="Pathway to a FASTA file from which to map the proteins/transcripts from the input file",
+        help="Pathway to a FASTA file from which to map the \
+            proteins/transcripts from the input file",
     ),
+    dry_run: bool = typer.Option(False, help="Perform a dry run without writing files"),
 ):
     """Prepare MutPred input files."""
     prep.Prepare(
@@ -65,6 +72,7 @@ def prepare(
         dry_run=dry_run,
         canonical=canonical,
         all_possible=all_possible,
+        truncate=truncate,
         verbose=verbose,
         users=users,
         fasta_path=fasta,
