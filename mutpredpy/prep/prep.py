@@ -252,6 +252,55 @@ class Prepare:  # pylint: disable=R0902
         )
         return logs
 
+    @staticmethod
+    def get_protein_ids(fasta_file, validation_results):
+        """
+        Extracts protein or transcript IDs from the FASTA file.
+
+        Args:
+            fasta (pd.DataFrame): DataFrame containing FASTA sequence data.
+
+        Returns:
+            tuple: A tuple containing:
+                - list: A list of detected protein or transcript IDs.
+                - bool: A flag indicating whether versioned IDs were found.
+
+        Raises:
+            Exception: If no valid protein or transcript IDs are found in the FASTA file.
+        """
+
+        ## First try to collect only versioned protein and transcript IDs
+        protein_ids = [
+            p
+            for p in validation_results.keys()
+            if p in fasta_file.columns
+            and validation_results[p]["versioned"]
+            and validation_results[p]["found"]
+        ]
+        if protein_ids:
+            return protein_ids, True
+
+        ## If no versioned protein or transcript IDs are found, collect all unversioned IDs
+        protein_ids = [
+            p
+            for p in validation_results.keys()
+            if p in fasta_file.columns and validation_results[p]["found"]
+        ]
+        if protein_ids:
+            return protein_ids, False
+
+        raise ValueError(
+            f"Input columns {0} not found in FASTA file".format(
+                ", ".join(
+                    [
+                        p
+                        for p in validation_results.keys()
+                        if validation_results[p]["found"]
+                    ]
+                )
+            )
+        )
+
     def mapping_unversioned_sequence(self, ff, data, col_mapping):
         """
         Maps protein or transcript sequences using unversioned identifiers.
@@ -366,40 +415,6 @@ class Prepare:  # pylint: disable=R0902
                 - dict: Updated column mapping dictionary.
         """
 
-        def get_protein_ids(fasta_file):
-
-            ## First try to collect only versioned protein and transcript IDs
-            protein_ids = [
-                p
-                for p in validation_results.keys()
-                if p in fasta_file.columns
-                and validation_results[p]["versioned"]
-                and validation_results[p]["found"]
-            ]
-            if protein_ids:
-                return protein_ids, True
-
-            ## If no versioned protein or transcript IDs are found, collect all unversioned IDs
-            protein_ids = [
-                p
-                for p in validation_results.keys()
-                if p in fasta_file.columns and validation_results[p]["found"]
-            ]
-            if protein_ids:
-                return protein_ids, False
-
-            raise ValueError(
-                f"Input columns {0} not found in FASTA file".format(
-                    ", ".join(
-                        [
-                            p
-                            for p in validation_results.keys()
-                            if validation_results[p]["found"]
-                        ]
-                    )
-                )
-            )
-
         col_mapping = {"mutation_column": "Substitution"}
 
         ## Collect FASTA files
@@ -410,7 +425,9 @@ class Prepare:  # pylint: disable=R0902
             ensembl_ff_grch37 = fasta.collect_ensembl_fasta(assembly="GRCh37")
             ensembl_ff_grch38 = fasta.collect_ensembl_fasta(assembly="GRCh38")
 
-            col_mapping["id_column"], versioned = get_protein_ids(ensembl_ff_grch38)
+            col_mapping["id_column"], versioned = Prepare.get_protein_ids(
+                ensembl_ff_grch38, validation_results
+            )
 
             if not self.all_possible:
                 data = self.groupby_id(data, col_mapping=col_mapping)
@@ -451,7 +468,9 @@ class Prepare:  # pylint: disable=R0902
         else:
             logger.info("Using FASTA file %s", self.__fasta)
             fasta_seqs = fasta.read_fasta(self.__fasta)
-            col_mapping["id_column"], versioned = get_protein_ids(fasta_seqs)
+            col_mapping["id_column"], versioned = Prepare.get_protein_ids(
+                fasta_seqs, validation_results
+            )
 
             if not self.all_possible:
                 data = self.groupby_id(data, col_mapping=col_mapping)
