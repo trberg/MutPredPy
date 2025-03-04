@@ -35,7 +35,7 @@ def time_minimum(x: int):
 
 ## PREPARE
 @app.command()
-def prepare(
+def prepare(  # pylint: disable=R0913,R0917
     input_file: str = typer.Option(help="Path to the input file"),
     working_dir: str = typer.Option(help="Path to output directory"),
     time: int = typer.Option(24, callback=time_minimum, help="Target time in hours"),
@@ -80,7 +80,7 @@ def prepare(
 
 
 @app.command()
-def check_status(
+def check_status(  # pylint: disable=R0913,R0917
     job_dir: str = typer.Option(..., help="Path to the MutPred2 jobs directory"),
     summary: Optional[str] = typer.Option(
         None, help="Path to a pre-generated summary file"

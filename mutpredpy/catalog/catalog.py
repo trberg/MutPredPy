@@ -16,7 +16,7 @@ import scipy.io as sio
 
 from .catalog_job import CatalogJob
 from ..utils import utils as u
-from ..fasta import fasta, Protein
+from ..fasta import Protein
 
 
 class Catalog:
@@ -86,6 +86,9 @@ class Catalog:
         )
 
     def load_neutral_distributions(self):
+        """
+        Loads the null distributions for the MutPred2 features to calculated p-values
+        """
         dists = sio.loadmat(
             pkg_resources.files("mutpredpy").joinpath(
                 "pkg_resources", "pu_features_null_distributions.mat"

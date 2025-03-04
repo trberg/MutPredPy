@@ -5,22 +5,23 @@ This module handles the preparation of input data for MutPred2, including
 sequence mapping, mutation processing, and job distribution.
 """
 
-from ..fasta import fasta
-from ..computing import lsf
-from ..utils import utils as u
-from .input_processing import process_input
-from .jobs import split_data
-
 import os
 import re
 import logging
 import pandas as pd
 import numpy as np
 
+from ..fasta import fasta
+from ..computing import lsf
+from ..utils import utils as u
+from .input_processing import process_input
+from .jobs import split_data
+
+
 logger = logging.getLogger()
 
 
-class Prepare:
+class Prepare:  # pylint: disable=R0902
     """
     Handles the preparation of input data for MutPred2, including file processing,
     sequence mapping, mutation handling, and job organization.

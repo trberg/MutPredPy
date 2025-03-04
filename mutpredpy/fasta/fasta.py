@@ -187,7 +187,7 @@ def check_sequences(row, col_mapping):
     )
 
 
-def clean_fasta_sequence(sequence):
+def clean_fasta_sequence(sequence: str):
     """Cleans FASTA sequence by removing invalid characters.
 
     Replaces:
@@ -201,14 +201,8 @@ def clean_fasta_sequence(sequence):
     Returns:
         str: Cleaned sequence.
     """
-    try:
-        return sequence.replace("*", "A").replace("U", "A").lstrip("X")
-    except AttributeError as e:
-        print(sequence)
-        print(type(sequence))
-        print(e)
-        print(sequence.replace("*", "A").replace("U", "A").lstrip("X"))
-        exit()
+
+    return sequence.replace("*", "A").replace("U", "A").lstrip("X")
 
 
 def data_quality_check(prepare, data, col_mapping):
@@ -235,9 +229,14 @@ def data_quality_check(prepare, data, col_mapping):
     if not not_passed.empty:
 
         ## Log errors
-        log_error_message = f"{not_passed['Substitution'].apply(lambda x: len(x.split(' '))).sum()} mutations in {len(not_passed)} proteins failed the quality check and have been removed."
+        log_error_message = f"\
+            {not_passed['Substitution'].apply(lambda x: len(x.split(' '))).sum()} \
+                mutations in {len(not_passed)} proteins failed the quality check and \
+                    have been removed."
         logger.warning(
-            f"{log_error_message} (additional info in {prepare.get_log_folder()}/errors.log)"
+            "%s (additional info in %d/errors.log)",
+            log_error_message,
+            prepare.get_log_folder(),
         )
 
         if prepare.dry_run:
@@ -310,7 +309,7 @@ def read_mutpred_input_fasta(faa_file):
     output = []
     temp = {"ID": "", "Substitution": "", "sequence": ""}
 
-    with open(faa_file, "r") as fasta:
+    with open(faa_file, "r", encoding="utf-8") as fasta:
         for line in fasta:
             if line.startswith(">"):
                 if temp["ID"]:
