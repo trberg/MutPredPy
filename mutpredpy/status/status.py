@@ -86,8 +86,7 @@ class Status:
         """
         if self.__log_dir == "":
             return self.__log_dir
-        else:
-            return os.path.abspath(self.__log_dir.rstrip("/"))
+        return os.path.abspath(self.__log_dir.rstrip("/"))
 
     def get_summary(self):
         """
@@ -98,8 +97,7 @@ class Status:
         """
         if not self.__summary:
             return False
-        else:
-            return os.path.abspath(self.__summary)
+        return os.path.abspath(self.__summary)
 
     def get_mutpred_output_file(self, jobid):
         """
@@ -227,16 +225,15 @@ class Status:
             for line in l:
                 if len(line) > 1 and ("TERM" in line):
                     return line.strip("\n")
-                elif len(line) > 1 and (
+                if len(line) > 1 and (
                     "MATLAB is exiting because of fatal error" in line
                 ):
                     next_line = next(l)
                     if "Killed" in next_line or "Bus" in next_line:
                         return line.strip("\n") + ": " + "Memory Error"
-                    elif "Bus" in next_line:
+                    if "Bus" in next_line:
                         return line.strip("\n") + ": " + "Memory Error"
-                    else:
-                        return line.strip("\n") + ": " + next_line.strip("\n")
+                    return line.strip("\n") + ": " + next_line.strip("\n")
         return error
 
     def has_err_log(self, log):
@@ -260,10 +257,8 @@ class Status:
         if os.path.exists(cur_log) and os.path.getsize(cur_log) > 0:
             error = self.read_err_log(log)
             return pd.Series([True, error])
-
-        else:
-            error = ""
-            return pd.Series([False, error])
+        error = ""
+        return pd.Series([False, error])
 
     def get_job_index(self, log):
         """
