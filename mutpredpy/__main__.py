@@ -96,7 +96,7 @@ def check_status(  # pylint: disable=R0913,R0917
     status.Status(
         job_dir=job_dir,
         summary=summary,
-        all=show_all,
+        show_all=show_all,
         show_incomplete=show_incomplete,
         logs=logs,
         script=script,

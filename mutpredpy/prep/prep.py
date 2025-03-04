@@ -135,12 +135,13 @@ class Prepare:  # pylint: disable=R0902
         """
         header_rows = []
         header_info = ""
-        for i, line in enumerate(open(input_path, "r", encoding="utf-8")):
-            if line.startswith("##"):
-                header_rows.append(i)
-                header_info += line
-            else:
-                break
+        with open(input_path, "r", encoding="utf-8") as input_file:
+            for i, line in enumerate(input_file):
+                if line.startswith("##"):
+                    header_rows.append(i)
+                    header_info += line
+                else:
+                    break
 
         input_data = pd.read_csv(input_path, sep="\t", skiprows=header_rows)
 
@@ -155,7 +156,7 @@ class Prepare:  # pylint: disable=R0902
         """
         working_dir, self.logging_status["working_dir"] = u.create_directory(
             self.__working_dir,
-            dry_run=self.dry_run,
+            dry_run_status=self.dry_run,
             logged_status=self.logging_status.get("working_dir"),
         )
 
@@ -192,19 +193,17 @@ class Prepare:  # pylint: disable=R0902
         def job_num(job):
             if isinstance(job, int):
                 return int(job)
-            elif isinstance(job, str) and re.search(r"job_\d+", job):
+            if isinstance(job, str) and re.search(r"job_\d+", job):
                 return int(job.split("_")[-1])
-            elif isinstance(job, str) and re.search(r"\d+", job):
+            if isinstance(job, str) and re.search(r"\d+", job):
                 return int(re.search(r"\d+", job).group())
-            else:
-                return 0
+            return 0
 
         if not os.path.exists(f"{jobs_dir}"):
             return 1
-        elif os.path.exists(f"{jobs_dir}") and len(os.listdir(f"{jobs_dir}")) > 0:
+        if os.path.exists(f"{jobs_dir}") and len(os.listdir(f"{jobs_dir}")) > 0:
             return max([job_num(f) for f in os.listdir(f"{jobs_dir}")]) + 1
-        else:
-            return 1
+        return 1
 
     def get_jobs_directory(self):
         """
@@ -215,7 +214,7 @@ class Prepare:  # pylint: disable=R0902
         """
         jobs_directory, self.logging_status["jobs_directory"] = u.create_directory(
             f"{self.get_working_dir()}/jobs",
-            dry_run=self.dry_run,
+            dry_run_status=self.dry_run,
             logged_status=self.logging_status.get("jobs_directory"),
         )
         return jobs_directory
@@ -232,7 +231,7 @@ class Prepare:  # pylint: disable=R0902
         """
         job_folder, self.logging_status["job_folder"][number] = u.create_directory(
             f"{self.get_jobs_directory()}/{number}",
-            dry_run=self.dry_run,
+            dry_run_status=self.dry_run,
             logged_status=self.logging_status.get("job_folder").get(number),
         )
         return job_folder
@@ -247,7 +246,7 @@ class Prepare:  # pylint: disable=R0902
 
         logs, self.logging_status["log_folder"] = u.create_directory(
             f"{self.get_working_dir()}/logs",
-            dry_run=self.dry_run,
+            dry_run_status=self.dry_run,
             logged_status=self.logging_status.get("log_folder"),
         )
         return logs
@@ -345,7 +344,7 @@ class Prepare:  # pylint: disable=R0902
             if isinstance(sequence, float) and np.isnan(sequence):
                 return False
 
-            elif substitutions is None and self.all_possible:
+            if substitutions is None and self.all_possible:
                 return True
 
             for sub in substitutions:
@@ -657,13 +656,13 @@ class Prepare:  # pylint: disable=R0902
 
         else:
             if number == 0:
-                output = open(faa_input_file, "w", encoding="utf-8")
-                output.write(header)
-                output.write(sequence)
+                with open(faa_input_file, "w", encoding="utf-8") as output:
+                    output.write(header)
+                    output.write(sequence)
             else:
-                output = open(faa_input_file, "a", encoding="utf-8")
-                output.write(header)
-                output.write(sequence)
+                with open(faa_input_file, "a", encoding="utf-8") as output:
+                    output.write(header)
+                    output.write(sequence)
 
             output.close()
 
@@ -722,13 +721,13 @@ class Prepare:  # pylint: disable=R0902
             tech_requirements, users=self.users
         )
 
-        for user, _ in enumerate(per_user_tech_requirements):
+        for useridx, tech_requirements in enumerate(per_user_tech_requirements):
 
             ## Generate the usage report if --verbose is active
-            lsf.usage_report(per_user_tech_requirements[user])
+            lsf.usage_report(tech_requirements)
 
             ## Build and output the
-            lsf.build_lsf_config_file(self, per_user_tech_requirements[user], user + 1)
+            lsf.build_lsf_config_file(self, tech_requirements, useridx + 1)
 
 
 if __name__ == "__main__":

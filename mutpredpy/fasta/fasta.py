@@ -68,7 +68,7 @@ class Protein:
         """
 
         # Initialize an empty dictionary to store the results
-        results = dict()
+        results = {}
 
         # Iterate over each ID type and its corresponding regex pattern from the class attribute
         for id_type, pattern in Protein.protein_transcript_regex.items():
@@ -284,14 +284,13 @@ def alignment_score(data, col_mapping):
     if not isinstance(sequence, str) and np.isnan(sequence):
         return 0
 
-    elif len(sequence) < max(positions):
+    if len(sequence) < max(positions):
         greater_than_sequence = [len(sequence) >= pos for pos in positions]
         return sum(greater_than_sequence) / len(positions)
 
-    else:
-        return sum(
-            1 for pos, ref in zip(positions, mutations) if sequence[pos] == ref[0]
-        ) / len(positions)
+    return sum(
+        1 for pos, ref in zip(positions, mutations) if sequence[pos] == ref[0]
+    ) / len(positions)
 
 
 def read_mutpred_input_fasta(faa_file):

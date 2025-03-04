@@ -72,15 +72,15 @@ def split_mutations(x, threshold, num_overflow_mutations, col_mapping):
                 size_of_splits,
             )
         ]
-    else:
-        return [
-            " ".join(leftover_mutations[i : i + size_of_splits])
-            for i in range(
-                0,
-                len(mutations[num_overflow_mutations : len(mutations)]),
-                size_of_splits,
-            )
-        ]
+
+    return [
+        " ".join(leftover_mutations[i : i + size_of_splits])
+        for i in range(
+            0,
+            len(mutations[num_overflow_mutations : len(mutations)]),
+            size_of_splits,
+        )
+    ]
 
 
 def split_sequence(data, cur_number, threshold, col_mapping):
@@ -190,7 +190,7 @@ def split_data(prepare, data, col_mapping, file_number=1):
         lambda x: x <= 5000
     )
     job_information["Middle Memory"] = job_information["Memory Minimum"].apply(
-        lambda x: x > 5000 and x <= 10000
+        lambda x: 5000 < x <= 10000
     )
     job_information["High Memory"] = job_information["Memory Minimum"].apply(
         lambda x: x > 10000
