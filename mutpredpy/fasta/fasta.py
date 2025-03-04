@@ -231,7 +231,7 @@ def data_quality_check(prepare, data, col_mapping):
     )
 
     ## Check if any sequences are invalid
-    not_passed = data[data["status"] is False]
+    not_passed = data[~data["status"]]
     if not not_passed.empty:
 
         ## Log errors
