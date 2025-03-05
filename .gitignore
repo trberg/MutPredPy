@@ -7,6 +7,7 @@ scripts/
 tools/
 MutPredPy/__pycache__/
 mutpredpy/__pycache__/
+mutpredpy/tests
 mutpred_temp/__pycache__/
 resources/
 mutpred_temp/pkg_resources/pu_features_null_distributions.mat

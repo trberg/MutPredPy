@@ -92,34 +92,28 @@ class Mechanisms:
             properties = Mechanisms.get_property_scores_and_pvalues(
                 catalog, catalog_job, job
             )
-            propX = Mechanisms.vectorized_get_properties_from_propx(
-                catalog, catalog_job
-            )
-
-            # def evaluate(row):
-            #    for k,v in row["Mechanisms_x"].items():
-            #        if not row["Mechanisms_x"][k] == row["Mechanisms_y"][k]:
-            #            print (k, row["Mechanisms_x"][k], row["Mechanisms_y"][k])
-            #            exit()
-
-            # testing = properties.merge(propX, on="Substitution", how="inner")
-            # testing.apply(lambda row: evaluate(row), axis=1)
-            # print (testing)
-            for i, mechs in enumerate(properties):
-                for mech in mechs:
-                    if mechs[mech] != propX[i][mech]:
-                        print(mechs[mech])
-                        print(propX[i][mech])
+            test = False
+            if test:
+                propx = Mechanisms.vectorized_get_properties_from_propx(
+                    catalog, catalog_job
+                )
+                for i, mechs in enumerate(properties):
+                    for mech in mechs:
+                        if mechs[mech] != propx[i][mech]:
+                            print(mechs[mech])
+                            print(propx[i][mech])
 
             return properties
 
-        elif os.path.exists(propx_pu):
+        if os.path.exists(propx_pu):
 
             properties = Mechanisms.vectorized_get_properties_from_propx(
                 catalog, catalog_job
             )
 
             return properties
+
+        return None
 
     @staticmethod
     def get_property_scores_and_pvalues(catalog, catalog_job, job):

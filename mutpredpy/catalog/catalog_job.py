@@ -352,8 +352,8 @@ class CatalogJob:
             if self.__catalog.features:
                 mut_features.to_csv(features_output, sep="\t", index=False)
 
-    # def standard_mutpred2_output_format(mutation, score, ):
-    ##ID,Substitution,MutPred2 score,Molecular mechanisms with Pr >= 0.01 and P < 1.00,Motif information,Remarks
+    def standard_mutpred2_output_format(mutation, score, ):
+        ##ID,Substitution,MutPred2 score,Molecular mechanisms with Pr >= 0.01 and P < 1.00,Motif information,Remarks
 
     def process_job(self, catalog):
         """
@@ -395,5 +395,3 @@ class CatalogJob:
                 remarks[i],
                 features[i],
             )
-
-        return None
