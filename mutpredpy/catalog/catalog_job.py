@@ -33,9 +33,9 @@ class CatalogJob:
 
     def __init__(self, job_path, catalog):
 
-        super().__init__(catalog.job_dir, catalog.mechanisms, catalog.dry_run)
-
         self.__job_path = job_path
+        self._positions = self.get_positions()
+        # self.__catalog = catalog
         self.__num_files = len(
             [
                 position_file
@@ -185,19 +185,21 @@ class CatalogJob:
         return remarks
 
     def process_job(self, catalog):
+        """
+        Processes a MutPred2 job by extracting and cataloging mutation-related data.
 
-        #
-        # exit()
+        Args:
+            catalog (Catalog): An instance of the Catalog class to store job data.
 
+        Returns:
+            pd.DataFrame: A DataFrame containing extracted mutation information,
+                        including substitutions, mechanisms, motifs, and remarks.
+        """
         substitutions = self.get_mutations()
-        print(substitutions.shape)
         mechanisms = Mechanisms.collect_mechanisms(catalog, self)
-        print(len(mechanisms))
         motifs = self.get_motifs()
-        print(len(motifs))
         remarks = self.get_notes()
-        print(len(remarks))
-        exit()
+
         job_catalog_info = pd.DataFrame(
             {
                 "Substitution": substitutions,
@@ -206,6 +208,5 @@ class CatalogJob:
                 "Remarks": remarks,
             }
         )
-        print(job_catalog_info)
-        exit()
+
         return job_catalog_info

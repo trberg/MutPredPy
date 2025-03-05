@@ -60,7 +60,7 @@ class Prepare:  # pylint: disable=R0902
 
         self.dry_run = dry_run
         self.all_possible = all_possible
-        self.truncate = True if truncate < 199999 else False
+        self.truncate = truncate < 199999
         self.truncate_threshold = truncate
         self.users = users
 
@@ -100,8 +100,7 @@ class Prepare:  # pylint: disable=R0902
 
         if os.path.exists(path):
             return path
-        else:
-            raise FileNotFoundError(f"Input file {path} not found.")
+        raise FileNotFoundError(f"Input file {path} not found.")
 
     def get_input(self):
         """
@@ -202,7 +201,7 @@ class Prepare:  # pylint: disable=R0902
         if not os.path.exists(f"{jobs_dir}"):
             return 1
         if os.path.exists(f"{jobs_dir}") and len(os.listdir(f"{jobs_dir}")) > 0:
-            return max([job_num(f) for f in os.listdir(f"{jobs_dir}")]) + 1
+            return max(job_num(f) for f in os.listdir(f"{jobs_dir}")) + 1
         return 1
 
     def get_jobs_directory(self):

@@ -47,26 +47,26 @@ class Catalog:
         """Loads mechanism-related properties to avoid reloading in child classes"""
         neutral_properties = self.load_neutral_distributions()
 
-        neutral_property_cols = [
+        self.neutral_property_cols = [
             neuts[0].replace("-", "_")
             for neuts in neutral_properties.get("neut_properties").flatten()
         ]
         self.property_names = [
             p.replace("_gain", "")
-            for p in neutral_property_cols
+            for p in self.neutral_property_cols
             if p.endswith("_gain") or p == "Stability"
         ]
         neutral_property_gain_cols = np.array(
             [
-                neutral_property_cols.index(col)
-                for col in neutral_property_cols
+                self.neutral_property_cols.index(col)
+                for col in self.neutral_property_cols
                 if col.endswith("_gain") or col == "Stability"
             ]
         )
         neutral_property_loss_cols = np.array(
             [
-                neutral_property_cols.index(col)
-                for col in neutral_property_cols
+                self.neutral_property_cols.index(col)
+                for col in self.neutral_property_cols
                 if col.endswith("_loss") or col == "Stability"
             ]
         )
@@ -82,7 +82,7 @@ class Catalog:
 
         self.n = self.null_distributions_array.shape[0]
         self.null_distributions = pd.DataFrame(
-            data=self.null_distributions_array, columns=neutral_property_cols
+            data=self.null_distributions_array, columns=self.neutral_property_cols
         )
 
     def load_neutral_distributions(self):
@@ -240,6 +240,8 @@ class Catalog:
             job_path = os.path.join(self.job_dir, job)
             catalog_job = CatalogJob(job_path, self)
             job_info = catalog_job.process_job(self)
+            print(job_info)
+            exit()
             catalog_index.append(job_info)
 
             # output_path = os.path.join(self.job_dir, job, "output.txt")
@@ -279,17 +281,6 @@ class Catalog:
 
             # job_information = cur_job.get_catalog_information(self)
             # print(job_information)
-            exit()
-
-            if not mechanisms.empty:
-
-                sequenced_data = sequenced_data.merge(
-                    mechanisms, on="Substitution", how="left"
-                )
-
-            else:
-
-                sequenced_data["Mechanisms"] = {}
 
             sequenced_data["sequence_hash"] = sequenced_data["sequence"].apply(
                 u.get_seq_hash

@@ -1,3 +1,10 @@
+"""
+Mechanisms Module for MutPredPy
+
+This module handles the extraction, processing, and analysis of molecular mechanisms 
+from MutPred2 output files, including computing p-values and integrating mechanism data.
+"""
+
 import os
 import re
 import scipy.io as sio
@@ -52,9 +59,18 @@ def compute_p_values(
 
 
 class Mechanisms:
+    """
+    Handles the extraction and processing of molecular mechanisms from MutPred2 output files.
+
+    This class provides methods to collect, format, and analyze mechanisms associated with
+    mutations, including the computation of p-values and integration of probability scores.
+
+    Attributes:
+        None
+    """
 
     @staticmethod
-    def collect_mechanisms(catalog, job):
+    def collect_mechanisms(catalog, catalog_job):
         """
         Collects molecular mechanisms from MutPred2 output files.
 
@@ -65,7 +81,7 @@ class Mechanisms:
             pd.DataFrame: A DataFrame containing mechanisms and their associated probabilities.
         """
 
-        positions = catalog.get_positions()
+        job = catalog_job.get_job_path()
 
         propx_pu = os.path.join(job, "output.txt.propX_pu_1.mat")
         property_scores = os.path.join(job, "output.txt.prop_scores_pu_1.mat")
@@ -92,7 +108,7 @@ class Mechanisms:
         elif os.path.exists(propx_pu):
 
             properties = Mechanisms.vectorized_get_properties_from_propx(
-                catalog, positions, job
+                catalog, catalog_job
             )
 
             return properties
@@ -108,8 +124,8 @@ class Mechanisms:
         Returns:
             pd.DataFrame: Dataframe containing mutations, scores, and associated mechanisms.
 
-        1. Collect position from the output.txt.position_pu.mat files. This will be included on a per
-        mechanism basis as "Impacted Amino Acid?"
+        1. Collect position from the output.txt.position_pu.mat files. This will be included
+        on a per mechanism basis as "Impacted Amino Acid?"
         2. Create a prop_types for gain or loss.
         3. Track notes
         4. Track motifs
@@ -169,7 +185,9 @@ class Mechanisms:
         )
 
         ## Format combination as a combined dictionary
-        labeled_properies["Mechanisms"] = labeled_properies.apply(combine_mechs, axis=1)
+        labeled_properies["Mechanisms"] = labeled_properies.apply(
+            Mechanisms.combine_mechs, axis=1
+        )
         labeled_properies = labeled_properies.filter(["Mechanisms"])
 
         return labeled_properies
@@ -224,7 +242,7 @@ class Mechanisms:
         positions = catalog_job.get_positions()
         prop_columns = [col.replace("_loss", "") for col in loss_columns]
         mechanisms = [
-            mechanisms_np_to_dict(
+            Mechanisms.mechanisms_np_to_dict(
                 max_scores[i], p_values[i], mech_gains[i], positions[i], prop_columns
             )
             for i in range(max_scores.shape[0])
@@ -276,7 +294,7 @@ class Mechanisms:
             col: {
                 "Posterior Probability": float(pr_array[i]),
                 "P-value": float(pval_array[i]),
-                "Effected Position": float(positions[i]),
+                "Effected Position": str(positions[i]),
                 "Type": "Gain" if mech_gains[i] else "Loss",
             }
             for i, col in enumerate(cols)

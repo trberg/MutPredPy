@@ -432,6 +432,7 @@ disable=raw-checker-failed,
         too-many-locals,
         too-many-arguments,
         too-many-function-args,
+        too-many-public-methods,
         too-many-instance-attributes,
         too-many-positional-arguments
 
