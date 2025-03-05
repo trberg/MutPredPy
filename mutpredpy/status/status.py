@@ -279,6 +279,7 @@ class Status:
                     job, index = line.split(":")[1].strip(" Job ").strip("]").split("[")
                     return pd.Series([job, index])
                     # Subject: Job 137347991[10]: <phase3[1-4000]> in cluster <chimera> Exited
+        return pd.Series([None, None])
 
     def retrieve_logs(self):
         """

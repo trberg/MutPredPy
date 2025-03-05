@@ -9,20 +9,20 @@ import os
 import re
 import importlib.resources as pkg_resources
 import logging
-import yaml
 import numpy as np
 import pandas as pd
 import scipy.io as sio
 
 from .catalog_job import CatalogJob
 from ..utils import utils as u
-from ..fasta import Protein
+
+logger = logging.getLogger()
 
 
 class Catalog:
     """Handles job cataloging for MutPred2 results."""
 
-    def __init__(self, job_dir, mechanisms=False, dry_run=False):
+    def __init__(self, job_dir, mechanisms=False, features=False, dry_run=False):
         """
         Initializes the Catalog class.
 
@@ -39,6 +39,7 @@ class Catalog:
 
         self.dry_run = dry_run
         self.mechanisms = mechanisms
+        self.features = features
 
         if self.mechanisms:
             self.load_mechanism_properties()
@@ -85,6 +86,9 @@ class Catalog:
             data=self.null_distributions_array, columns=self.neutral_property_cols
         )
 
+        # Feature columns
+        self.feature_columns = self.load_feature_columns()
+
     def load_neutral_distributions(self):
         """
         Loads the null distributions for the MutPred2 features to calculated p-values
@@ -95,6 +99,21 @@ class Catalog:
             )
         )
         return dists
+
+    def load_feature_columns(self):
+        """
+        Loads a list of feature columns names for feature files from mutpred2
+        """
+        if hasattr(self, "feature_columns"):
+            return self.feature_columns
+
+        feat_cols = pd.read_csv(
+            pkg_resources.files("mutpredpy").joinpath(
+                "pkg_resources", "mp2_features.csv"
+            ),
+            sep=",",
+        )
+        return feat_cols
 
     def check_jobs_directory(self, job_dir):
         """
@@ -152,52 +171,6 @@ class Catalog:
 
         return job_dir
 
-    def write_mutation_to_catalog(self, row):
-        """
-        Writes mutation data to the catalog directory in YAML format.
-
-        Args:
-            row (pd.Series): A Pandas Series containing mutation details including
-                            substitution, MutPred2 score, and mechanisms.
-
-        Returns:
-            None
-        """
-        mutation = row["Substitution"]
-        pos = re.search(r"\d+", mutation).group()
-        _, alt = mutation.split(pos)
-
-        if self.mechanisms:
-            mutpred_data = {
-                "Substitution": row["Substitution"],
-                "MutPred2 Score": row["MutPred2 score"],
-                "Mechanisms": row["Mechanisms"],
-            }
-        else:
-            mutpred_data = {
-                "Substitution": row["Substitution"],
-                "MutPred2 Score": row["MutPred2 score"],
-            }
-
-        mutation_path = os.path.join(
-            self.catalog_location, "scores", row["sequence_hash"], pos, alt
-        )
-        if self.dry_run:
-            logging.info("Would've created catalog directory %s", mutation_path)
-
-        else:
-            os.makedirs(mutation_path, exist_ok=True)
-
-        mutpred_output_yaml_path = os.path.join(mutation_path, "mutpred2_output.yaml")
-        if self.dry_run:
-            logging.info("Would've created the file %s", mutpred_output_yaml_path)
-
-        else:
-            with open(mutpred_output_yaml_path, "wt", encoding="utf-8") as yaml_file:
-                yaml.dump(
-                    mutpred_data, yaml_file, default_flow_style=False, sort_keys=False
-                )
-
     def print_progress(self, cur_job, number_of_jobs, end="\r"):
         """
         Displays a progress bar for tracking job completion.
@@ -226,10 +199,9 @@ class Catalog:
         Returns:
             pd.DataFrame: DataFrame containing cataloged job information.
         """
-        catalog_index = []
 
         job_dirs = os.listdir(self.job_dir)
-        job_dirs = ["263"]
+        job_dirs = ["1", "2", "263"]
 
         number_of_jobs = len(job_dirs)
         cur_job = 0
@@ -238,70 +210,16 @@ class Catalog:
         for job in job_dirs:
 
             job_path = os.path.join(self.job_dir, job)
+
             catalog_job = CatalogJob(job_path, self)
-            job_info = catalog_job.process_job(self)
-            print(job_info)
-            exit()
-            catalog_index.append(job_info)
 
-            # output_path = os.path.join(self.job_dir, job, "output.txt")
-            # input_path = os.path.join(self.job_dir, job, "input.faa")
-
-            # output = pd.read_csv(output_path)
-            # input_faa = fasta.read_mutpred_input_fasta(input_path)
-            # input_faa["Substitution"] = input_faa["Substitution"].apply(
-            #     lambda x: x.split(",")
-            # )
-            # input_faa = input_faa.explode("Substitution")
-
-            # sequenced_data = output.merge(
-            #     input_faa, on=["ID", "Substitution"], how="left"
-            # )
-
-            # if (
-            #     self.mechanisms
-            #     and "Molecular mechanisms with Pr >= 0.01 and P < 1.00"
-            #     in output.columns
-            # ):
-            #     keep_cols = [
-            #         "ID",
-            #         "Substitution",
-            #         "MutPred2 score",
-            #         "Molecular mechanisms with Pr >= 0.01 and P < 1.00",
-            #         "sequence",
-            #     ]
-            # else:
-            #     keep_cols = ["ID", "Substitution", "MutPred2 score", "sequence"]
-
-            # sequenced_data = sequenced_data.filter(keep_cols)
-
-            # job_path = os.path.join(self.job_dir, job)
-
-            # cur_job = Catalog_Job(job_path=job_path)
-
-            # job_information = cur_job.get_catalog_information(self)
-            # print(job_information)
-
-            sequenced_data["sequence_hash"] = sequenced_data["sequence"].apply(
-                u.get_seq_hash
-            )
-
-            sequenced_data.apply(self.write_mutation_to_catalog, axis=1)
-
-            cur_index = Protein.split_mutpred_output_ids(
-                sequenced_data[["ID", "sequence_hash"]].drop_duplicates()
-            )
-
-            catalog_index.append(cur_index)
+            catalog_job.process_job(self)
 
             cur_job += 1
+
             self.print_progress(cur_job, number_of_jobs)
 
         self.print_progress(cur_job, number_of_jobs, end="\n")
-
-        catalog_index = pd.concat(catalog_index)
-
-        return catalog_index.drop_duplicates()
 
 
 if __name__ == "__main__":

@@ -89,8 +89,12 @@ class Mechanisms:
 
         if os.path.exists(property_scores) and os.path.exists(property_pvalues):
 
-            properties = Mechanisms.get_property_scores_and_pvalues(catalog, job)
-            # propX = self.vectorized_get_properties_from_propX(catalog, job)
+            properties = Mechanisms.get_property_scores_and_pvalues(
+                catalog, catalog_job, job
+            )
+            propX = Mechanisms.vectorized_get_properties_from_propx(
+                catalog, catalog_job
+            )
 
             # def evaluate(row):
             #    for k,v in row["Mechanisms_x"].items():
@@ -101,7 +105,11 @@ class Mechanisms:
             # testing = properties.merge(propX, on="Substitution", how="inner")
             # testing.apply(lambda row: evaluate(row), axis=1)
             # print (testing)
-            # exit()
+            for i, mechs in enumerate(properties):
+                for mech in mechs:
+                    if mechs[mech] != propX[i][mech]:
+                        print(mechs[mech])
+                        print(propX[i][mech])
 
             return properties
 
@@ -114,7 +122,7 @@ class Mechanisms:
             return properties
 
     @staticmethod
-    def get_property_scores_and_pvalues(catalog, job):
+    def get_property_scores_and_pvalues(catalog, catalog_job, job):
         """
         Retrieves property scores and p-values for mutations from MutPred2 output files.
 
@@ -130,67 +138,53 @@ class Mechanisms:
         3. Track notes
         4. Track motifs
         """
+        # catalog.property_names
         ## Collect predicted property scores
-        prop_score_files = [
-            prop_file
-            for prop_file in os.listdir(job)
-            if re.search(r"output.txt.prop_scores_pu_\d+.mat", prop_file)
-        ]
-        labeled_property_scores = pd.concat(
+        property_scores = np.array(
             [
-                pd.DataFrame(
-                    data=sio.loadmat(
-                        os.path.join(job, f"output.txt.prop_scores_pu_{p+1}.mat")
-                    ).get("prop_scores_pu"),
-                    columns=catalog.property_names,
-                )
-                for p in range(len(prop_score_files))
+                score_array
+                for p in range(catalog_job.get_num_files())
+                for score_array in sio.loadmat(
+                    os.path.join(job, f"output.txt.prop_scores_pu_{p+1}.mat")
+                ).get("prop_scores_pu")
             ]
-        ).reset_index(drop=True)
-
-        labeled_property_scores["Mechanisms"] = labeled_property_scores.apply(
-            lambda row: Mechanisms.mechanisms_to_dict(row, "Posterior Probability"),
-            axis=1,
         )
-        labeled_property_scores = labeled_property_scores.filter(["Mechanisms"])
 
-        ## Collect predicted property p-values
-        prop_pvalues_files = [
-            prop_file
-            for prop_file in os.listdir(job)
-            if re.search(r"output.txt.prop_pvals_pu_\d+.mat", prop_file)
-        ]
-        labeled_property_pvalues = pd.concat(
+        property_pvalues = np.array(
             [
-                pd.DataFrame(
-                    data=sio.loadmat(
-                        os.path.join(job, f"output.txt.prop_pvals_pu_{p+1}.mat")
-                    ).get("prop_pvals_pu"),
-                    columns=catalog.property_names,
-                )
-                for p in range(len(prop_pvalues_files))
+                score_array
+                for p in range(catalog_job.get_num_files())
+                for score_array in sio.loadmat(
+                    os.path.join(job, f"output.txt.prop_pvals_pu_{p+1}.mat")
+                ).get("prop_pvals_pu")
             ]
-        ).reset_index(drop=True)
-
-        labeled_property_pvalues["Mechanisms"] = labeled_property_pvalues.apply(
-            lambda row: Mechanisms.mechanisms_to_dict(row, "P-value"), axis=1
         )
-        labeled_property_pvalues = labeled_property_pvalues.filter(["Mechanisms"])
 
-        ## Combine scores and p-values
-        labeled_properies = labeled_property_scores.merge(
-            labeled_property_pvalues,
-            how="inner",
-            suffixes=["_pr", "_p"],
+        property_types = np.array(
+            [
+                score_array - 1
+                for p in range(catalog_job.get_num_files())
+                for score_array in sio.loadmat(
+                    os.path.join(job, f"output.txt.prop_types_pu_{p+1}.mat")
+                ).get("prop_types_pu")
+            ]
         )
+
+        positions = catalog_job.get_positions()
 
         ## Format combination as a combined dictionary
-        labeled_properies["Mechanisms"] = labeled_properies.apply(
-            Mechanisms.combine_mechs, axis=1
-        )
-        labeled_properies = labeled_properies.filter(["Mechanisms"])
+        mechanisms = [
+            Mechanisms.mechanisms_np_to_dict(
+                property_scores[i],
+                property_pvalues[i],
+                property_types[i],
+                positions[i],
+                catalog.property_names,
+            )
+            for i in range(property_scores.shape[0])
+        ]
 
-        return labeled_properies
+        return mechanisms
 
     @staticmethod
     def vectorized_get_properties_from_propx(catalog, catalog_job):
@@ -251,7 +245,7 @@ class Mechanisms:
         return mechanisms
 
     @staticmethod
-    def mechanisms_to_dict(row, value_name):
+    def mechanisms_to_dict(cur_array: np.array, value_name, property_columns):
         """
         Convert a row of data into a nested dictionary structure.
 
@@ -267,12 +261,10 @@ class Mechanisms:
         Notes:
             - If the "Substitution" column exists, it is dropped before processing.
         """
-        try:
-            cur_row = row.drop("Substitution")
-        except KeyError:
-            cur_row = row
 
-        properties = {i: {value_name: r} for i, r in cur_row.items()}
+        properties = {
+            property_columns[i]: {value_name: r} for i, r in enumerate(cur_array)
+        }
 
         return properties
 
@@ -303,7 +295,7 @@ class Mechanisms:
         return properties
 
     @staticmethod
-    def combine_mechs(row):
+    def combine_mechs(scores, pvals):
         """
         Combines two dictionaries where one contains mechanism scores and the other contains
         mechanism p-values.
@@ -314,10 +306,22 @@ class Mechanisms:
         Returns:
             dict: A dictionary combining probabilities and p-values for each mechanism.
         """
-        cur_dict = {}
-        for k in row["Mechanisms_pr"].keys():
-            cur_dict[k] = {}
-            cur_dict[k].update(row["Mechanisms_pr"][k])
-            cur_dict[k].update(row["Mechanisms_p"][k])
 
-        return cur_dict
+        merged = []
+
+        def combine_dicts(score, pval):
+            cur_dict = {}
+            cur_dict.update(score)
+            cur_dict.update(pval)
+            return cur_dict
+
+        for i, score_dict in enumerate(scores):
+            pvals_dict = pvals[i]
+
+            current_dict = {
+                i: combine_dicts(score_dict[i], pvals_dict[i])
+                for i in pvals_dict.keys()
+            }
+            merged.append(current_dict)
+
+        return merged

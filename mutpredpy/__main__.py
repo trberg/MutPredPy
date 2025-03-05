@@ -129,12 +129,17 @@ def catalog_results(
     mechanisms: bool = typer.Option(
         False, help="Include mechanisms in the cataloging process"
     ),
+    features: bool = typer.Option(
+        False, help="Include features for each substitutions"
+    ),
     dry_run: bool = typer.Option(
         False, help="Run merging process without saving output"
     ),
 ):
     """Catalog all mutpred scores from a given job directory"""
-    Catalog(job_dir=job_dir, mechanisms=mechanisms, dry_run=dry_run).catalog_jobs()
+    Catalog(
+        job_dir=job_dir, mechanisms=mechanisms, features=features, dry_run=dry_run
+    ).catalog_jobs()
 
 
 def main():

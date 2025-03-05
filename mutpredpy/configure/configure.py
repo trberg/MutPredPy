@@ -31,7 +31,9 @@ def load_config():
             config.update(yaml.safe_load(file))
 
     # 2. Load packaged default config (as fallback)
-    with pkg_resources.files("mutpredpy").joinpath("config.yaml").open("r") as file:
+    with pkg_resources.files("mutpredpy").joinpath("config.yaml").open(
+        "r", encoding="utf-8"
+    ) as file:
         default_config = yaml.safe_load(file)
         config = {
             **default_config,

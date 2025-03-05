@@ -92,7 +92,7 @@ class AminoAcidMap:
         """Map a single amino acid code (1-letter to 3-letter or vice versa)."""
         if len(code) == 1:  # Single to triple
             return AminoAcidMap.ONE_TO_THREE.get(code, code)
-        elif len(code) == 3:  # Triple to single
+        if len(code) == 3:  # Triple to single
             return AminoAcidMap.THREE_TO_ONE.get(code.capitalize(), code)
         return code
 
@@ -435,12 +435,11 @@ def mutpred2_path():
     # Raise an error if the path is not defined
     if not mutpred_path:
         raise FileNotFoundError("No MutPred2 path designated in config.yaml.")
-    elif not os.path.exists(mutpred_path):
+    if not os.path.exists(mutpred_path):
         raise FileNotFoundError(
             f"MutPred2 path {mutpred_path} not found. Change in config.yaml."
         )
-    else:
-        return mutpred_path
+    return mutpred_path
 
 
 def catalog_directory():
@@ -462,9 +461,8 @@ def catalog_directory():
     # Raise an error if the path is not defined
     if not catalog_path:
         raise FileNotFoundError("No catalog path designated in config.yaml")
-    elif not os.path.exists(catalog_path):
+    if not os.path.exists(catalog_path):
         raise FileNotFoundError(
             f"Catalog path {catalog_path} not found. Change in config.yaml."
         )
-    else:
-        return catalog_path
+    return catalog_path
