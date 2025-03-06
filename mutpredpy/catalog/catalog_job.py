@@ -418,7 +418,7 @@ class CatalogJob:
                 (feature_name, feature_data).
         """
         # Convert dictionary to a list of tuples with (feature_name, feature_data)
-        items = [(feature, details) for feature, details in data_dict.items()]
+        items = list(data_dict.items())
 
         # Sort by the P-value in ascending order
         sorted_items = sorted(
@@ -497,8 +497,6 @@ class CatalogJob:
             pd.DataFrame: A DataFrame containing extracted mutation information,
                         including substitutions, mechanisms, motifs, and remarks.
         """
-        # Retrieve protein IDs associated with the job
-        protein_ids = self.get_ids()
 
         # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
@@ -528,9 +526,6 @@ class CatalogJob:
         else:
             # If features are not collected, fill with None values
             features = [None for i in range(substitutions)]
-
-        # Initialize a list to store MutPred2 output data
-        mutpred2_output = []
 
         # Iterate over each mutation and store relevant data in the catalog
         for i, sub in enumerate(substitutions):

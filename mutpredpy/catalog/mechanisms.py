@@ -7,7 +7,6 @@ from MutPred2 output files, including computing p-values and integrating mechani
 
 import os
 import re
-from operator import itemgetter
 import scipy.io as sio
 import numpy as np
 import pandas as pd
