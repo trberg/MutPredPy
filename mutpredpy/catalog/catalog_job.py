@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from mutpredpy.utils import utils as u
+from mutpredpy.fasta import fasta
 from .mechanisms import Mechanisms
 
 logger = logging.getLogger()
@@ -42,6 +43,43 @@ class CatalogJob:
         "No PSSM",
         "No conservation scores",
         "Predicted conservation scores",
+    ]
+    updated_property_list = {
+        "Intracellular": "Cytoplasmic",
+        "Extracellular": "Non-cytoplasmic",
+        "VSL2B_disorder": "Intrinsic_disorder",
+        "Surface_accessibility": "Relative_solvent_accessibility",
+        "GPI_anchor_amidation": "GPI-anchor_amidation",
+        "B_factor": "B-factor",
+        "N_terminal_signal": "N-terminal_signal",
+        "C_terminal_signal": "C-terminal_signal",
+    }
+    To_skip = "Non_transmembrane"
+    Altered = [
+        "N_terminal_signal",
+        "Signal_helix",
+        "C_terminal_signal",
+        "Signal_cleavage",
+        "Cytoplasmic_loop",
+        "Transmembrane_region",
+        "Non_cytoplasmic_loop",
+        "Non_transmembrane",
+        "Coiled_coil",
+        "Calmodulin_binding",
+        "DNA_binding",
+        "RNA_binding",
+        "PPI_residue",
+        "PPI_hotspot",
+        "MoRF",
+        "Stability",
+    ]
+    Region = Altered + [
+        "Helix",
+        "Strand",
+        "Loop",
+        "Intrinsic_disorder",
+        "B_factor",
+        "Relative_solvent_accessibility",
     ]
 
     def __init__(self, job_path, catalog):
@@ -91,6 +129,22 @@ class CatalogJob:
             list: The size of each file output type.
         """
         return self.__file_sizes
+
+    def get_ids(self):
+        """
+        Extracts and returns the list of protein or transcript IDs from the job's input FASTA file.
+
+        Returns:
+            list: A list of IDs corresponding to the sequences in the input FASTA file.
+        """
+        input_file = fasta.read_mutpred_input_fasta(
+            os.path.join(self.get_job_path(), "input.faa")
+        )
+        input_file = input_file.filter(["ID", "Substitution"])
+        input_file["Substitution"] = input_file["Substitution"].str.split(",")
+        input_file = input_file.explode("Substitution")
+        input_file = input_file["ID"].to_list()
+        return input_file
 
     def get_mutations(self):
         """
@@ -235,7 +289,7 @@ class CatalogJob:
 
         positions = np.array(
             [
-                np.array([f"{sequences[i][pos - 1]}{pos}" for pos in dim] + ["A0"])
+                np.array([f"{sequences[i][pos - 1]}{pos}" for pos in dim] + ["-"])
                 for i, pos_files in enumerate(position_files)
                 for dim in pos_files["positions_pu"]
             ]
@@ -257,7 +311,7 @@ class CatalogJob:
         ]
 
         motif_strings = [
-            str(motif_string[0])
+            f"Altered Motifs ({str(motif_string[0])})"
             for motif_file in motifs
             for motif_arry in motif_file
             for motif_string in motif_arry
@@ -318,12 +372,9 @@ class CatalogJob:
         mutpred_data = {
             "Substitution": mutation,
             "MutPred2 Score": mutpred2_score,
+            "Motifs": mut_motifs,
+            "Notes": mut_remarks,
         }
-        if self.__catalog.mechanisms:
-            mutpred_data["Mechanisms"] = mut_mechanisms
-
-        mutpred_data["Motifs"] = mut_motifs
-        mutpred_data["Notes"] = mut_remarks
 
         mutation_path = os.path.join(
             self.__catalog.catalog_location, "scores", sequence_hash, pos, alt
@@ -336,13 +387,13 @@ class CatalogJob:
             os.makedirs(mutation_path, exist_ok=True)
 
         output_yaml_path = os.path.join(mutation_path, "output.yaml")
-        mechanisms_yaml_path = os.path.join(mutation_path, "mechanisms.yaml")
-        features_output = os.path.join(mutation_path, "features.csv")
+        mechanisms_path = os.path.join(mutation_path, "mechanisms.csv")
+        features_path = os.path.join(mutation_path, "features.csv")
 
         if self.__catalog.dry_run:
             logger.dry_run("Would've created the file %s", output_yaml_path)
-            logger.dry_run("Would've created the file %s", mechanisms_yaml_path)
-            logger.dry_run("Would've created the file %s", features_output)
+            logger.dry_run("Would've created the file %s", mechanisms_path)
+            logger.dry_run("Would've created the file %s", features_path)
 
         else:
             with open(output_yaml_path, "wt", encoding="utf-8") as yaml_file:
@@ -350,10 +401,90 @@ class CatalogJob:
                     mutpred_data, yaml_file, default_flow_style=False, sort_keys=False
                 )
             if self.__catalog.features:
-                mut_features.to_csv(features_output, sep="\t", index=False)
+                mut_features.to_csv(features_path, sep="\t", index=False)
 
-    def standard_mutpred2_output_format(mutation, score, ):
-        ##ID,Substitution,MutPred2 score,Molecular mechanisms with Pr >= 0.01 and P < 1.00,Motif information,Remarks
+            if self.__catalog.mechanisms:
+                mut_mechanisms.to_csv(mechanisms_path, sep="\t", index=False)
+
+    def sort_by_p_value(self, data_dict):
+        """
+        Sorts the dictionary entries based on the P-value from lowest to highest.
+
+        Args:
+            data_dict (dict): Dictionary containing mutation effect data.
+
+        Returns:
+            list: A list of tuples sorted by P-value, where each tuple consists of
+                (feature_name, feature_data).
+        """
+        # Convert dictionary to a list of tuples with (feature_name, feature_data)
+        items = [(feature, details) for feature, details in data_dict.items()]
+
+        # Sort by the P-value in ascending order
+        sorted_items = sorted(
+            items, key=lambda x: x[1]["Posterior Probability"], reverse=True
+        )
+
+        return sorted_items
+
+    def standard_mutpred2_output_format(
+        self,
+        prot_id,
+        mutation,
+        score,
+        mechanisms,
+        motif,
+        remarks,
+    ):
+        """
+        Formats extracted MutPred2 mutation data into a standardized output format.
+
+        Args:
+            mutation (str): Mutation identifier.
+            score (float): MutPred2 score associated with the mutation.
+            mechanisms (dict): Dictionary containing molecular mechanisms and their probabilities.
+            motif (str): Motif information related to the mutation.
+            remarks (str): Additional remarks or notes on the mutation.
+
+        Returns:
+            dict: A dictionary containing the formatted MutPred2 output data.
+        """
+
+        formatted_mechanisms = []
+        sorted_mechanisms = self.sort_by_p_value(mechanisms)
+
+        for mech, info in sorted_mechanisms:
+            if info["P-value"] < 1 and info["Posterior Probability"] >= 0.01:
+                mech = self.updated_property_list.get(mech, mech)
+
+                if mech == "Motifs":
+                    pass
+                    # print(f"Altered {mech}")
+                elif mech in self.Region and mech in self.Altered:
+                    mech_formatted = f"Altered {mech} (Pr = {round(info['Posterior Probability'], 2)}| P = {round(info['P-value'], 2)})"  # pylint: disable=C0301
+                    formatted_mechanisms.append(mech_formatted)
+                elif mech in self.Altered:
+                    mech_formatted = f"Altered {mech} at {info['Effected Position']} (Pr = {round(info['Posterior Probability'], 2)}| P = {round(info['P-value'], 2)})"  # pylint: disable=C0301
+                    formatted_mechanisms.append(mech_formatted)
+                elif mech in self.Region:
+                    mech_formatted = f"{info['Type']} of {mech} (Pr = {round(info['Posterior Probability'], 2)} | {round(info['P-value'], 2)})"  # pylint: disable=C0301
+                    formatted_mechanisms.append(mech_formatted)
+                else:
+                    mech_formatted = f"{info['Type']} of {mech} at {info['Effected Position']} (Pr = {round(info['Posterior Probability'], 2)} | {round(info['P-value'], 2)})"  # pylint: disable=C0301
+                    formatted_mechanisms.append(mech_formatted)
+
+        data = {
+            "ID": prot_id,
+            "Substitution": mutation,
+            "MutPred2 score": score,
+            "Molecular mechanisms with Pr >= 0.01 and P < 1.00": "; ".join(
+                formatted_mechanisms
+            ),
+            "Motif information": motif,
+            "Remarks": remarks,
+        }
+
+        return data
 
     def process_job(self, catalog):
         """
@@ -366,32 +497,49 @@ class CatalogJob:
             pd.DataFrame: A DataFrame containing extracted mutation information,
                         including substitutions, mechanisms, motifs, and remarks.
         """
+        # Retrieve protein IDs associated with the job
+        protein_ids = self.get_ids()
 
+        # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
+
+        # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
 
+        # Retrieve MutPred2 scores for the identified mutations
         mutpred2_scores = self.get_mutpred2_scores()
 
+        # Collect mechanisms if cataloging mechanisms is enabled
         if self.__catalog.mechanisms:
             mechanisms = Mechanisms.collect_mechanisms(catalog, self)
         else:
+            # If mechanisms are not collected, fill with None values
             mechanisms = [None for i in range(substitutions)]
 
+        # Extract motif information related to the mutations
         motifs = self.get_motifs()
+
+        # Retrieve additional remarks or notes related to the mutations
         remarks = self.get_notes()
 
+        # Collect feature data if cataloging features is enabled
         if self.__catalog.features:
             features = self.get_features()
         else:
+            # If features are not collected, fill with None values
             features = [None for i in range(substitutions)]
 
+        # Initialize a list to store MutPred2 output data
+        mutpred2_output = []
+
+        # Iterate over each mutation and store relevant data in the catalog
         for i, sub in enumerate(substitutions):
             self.write_mutation_to_catalog(
-                sub,
-                mutpred2_scores[i],
-                sequence_hashes[i],
-                mechanisms[i],
-                motifs[i],
-                remarks[i],
-                features[i],
+                sub,  # Substitution mutation
+                mutpred2_scores[i],  # MutPred2 score for the mutation
+                sequence_hashes[i],  # Hash of the sequence where mutation occurs
+                mechanisms[i],  # Mechanistic insights related to the mutation
+                motifs[i],  # Motif-related information
+                remarks[i],  # Remarks or notes related to the mutation
+                features[i],  # Additional extracted features (if available)
             )

@@ -201,7 +201,7 @@ class Catalog:
         """
 
         job_dirs = os.listdir(self.job_dir)
-        job_dirs = ["1", "2", "263"]
+        # job_dirs = ["263"]
 
         number_of_jobs = len(job_dirs)
         cur_job = 0

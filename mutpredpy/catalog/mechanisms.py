@@ -7,6 +7,7 @@ from MutPred2 output files, including computing p-values and integrating mechani
 
 import os
 import re
+from operator import itemgetter
 import scipy.io as sio
 import numpy as np
 import pandas as pd
@@ -92,6 +93,8 @@ class Mechanisms:
             properties = Mechanisms.get_property_scores_and_pvalues(
                 catalog, catalog_job, job
             )
+
+            ## Test that properties are being calculated correctly
             test = False
             if test:
                 propx = Mechanisms.vectorized_get_properties_from_propx(
@@ -168,12 +171,17 @@ class Mechanisms:
 
         ## Format combination as a combined dictionary
         mechanisms = [
-            Mechanisms.mechanisms_np_to_dict(
-                property_scores[i],
-                property_pvalues[i],
-                property_types[i],
-                positions[i],
-                catalog.property_names,
+            pd.DataFrame(
+                {
+                    "Property": catalog.property_names,
+                    "Posterior Probability": property_scores[i],
+                    "P-value": property_pvalues[i],
+                    "Effected Position": positions[i],
+                    "Type": [
+                        "Gain" if mech_type else "Loss"
+                        for mech_type in property_types[i]
+                    ],
+                }
             )
             for i in range(property_scores.shape[0])
         ]
@@ -195,26 +203,36 @@ class Mechanisms:
 
         # Load all propX files
         job = catalog_job.get_job_path()
-        propx_pu_files = [
-            os.path.join(job, f)
-            for f in os.listdir(job)
-            if re.search(r"output.txt.propX_pu_\d+.mat", f)
-        ]
 
-        # Load and concatenate all matrices
-        prop_data = [sio.loadmat(f)["propX_pu"] for f in propx_pu_files]
-        predicted_properties = pd.DataFrame(
-            np.vstack(prop_data), columns=catalog.neutral_property_cols
+        propx_pu = np.array(
+            [
+                propx_array
+                for p in range(catalog_job.get_num_files())
+                for propx_array in sio.loadmat(
+                    os.path.join(job, f"output.txt.propX_pu_{p+1}.mat")
+                ).get("propX_pu")
+            ]
         )
 
-        # Identify loss/gain columns efficiently
-        loss_mask = predicted_properties.columns.str.contains(r"_loss$|Stability")
-        loss_columns = predicted_properties.columns[loss_mask]
-        gain_columns = loss_columns.str.replace("_loss", "_gain")
+        # Identify loss/gain column indices
+        loss_mask_idx = np.array(
+            [
+                i
+                for i, col in enumerate(catalog.neutral_property_cols)
+                if re.search(r"_loss$|Stability", col)
+            ]
+        )
+        gain_mask_idx = np.array(
+            [
+                i
+                for i, col in enumerate(catalog.neutral_property_cols)
+                if re.search(r"_gain$|Stability", col)
+            ]
+        )
 
         # Convert to NumPy for fast operations
-        loss_props = predicted_properties[loss_columns].to_numpy()
-        gain_props = predicted_properties[gain_columns].to_numpy()
+        loss_props = propx_pu[:, loss_mask_idx]
+        gain_props = propx_pu[:, gain_mask_idx]
 
         # Compute max score across loss and gain
         max_scores = np.maximum(loss_props, gain_props)
@@ -228,10 +246,18 @@ class Mechanisms:
         )
 
         positions = catalog_job.get_positions()
-        prop_columns = [col.replace("_loss", "") for col in loss_columns]
+
         mechanisms = [
-            Mechanisms.mechanisms_np_to_dict(
-                max_scores[i], p_values[i], mech_gains[i], positions[i], prop_columns
+            pd.DataFrame(
+                {
+                    "Property": catalog.property_names,
+                    "Posterior Probability": max_scores[i],
+                    "P-value": p_values[i],
+                    "Effected Position": positions[i],
+                    "Type": [
+                        "Gain" if mech_type else "Loss" for mech_type in mech_gains[i]
+                    ],
+                }
             )
             for i in range(max_scores.shape[0])
         ]
