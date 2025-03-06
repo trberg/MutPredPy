@@ -11,7 +11,6 @@ import importlib.resources as pkg_resources
 import logging
 import numpy as np
 import pandas as pd
-import scipy.io as sio
 
 from .catalog_job import CatalogJob
 from ..utils import utils as u
