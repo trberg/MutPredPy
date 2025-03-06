@@ -11,7 +11,6 @@ mutpredpy/tests
 mutpred_temp/__pycache__/
 resources/
 mutpred_temp/pkg_resources/pu_features_null_distributions.mat
-*.csv
 run_mutpred.sh
 
 # Byte-compiled / optimized / DLL files

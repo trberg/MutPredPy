@@ -10,3 +10,4 @@ mutpredpy/test/test_data/test.ENSP_ENST_ENSG.txt filter=lfs diff=lfs merge=lfs -
 mutpredpy/test/test_data/test.ENSP_unversioned.txt filter=lfs diff=lfs merge=lfs -text
 mutpredpy/pkg_resources/pu_features_null_distributions.mat filter=lfs diff=lfs merge=lfs -text
 mutpredpy/pkg_resources/mp2_features.csv filter=lfs diff=lfs merge=lfs -text
+mutpredpy/pkg_resources/neutral_property_distributions.csv filter=lfs diff=lfs merge=lfs -text
