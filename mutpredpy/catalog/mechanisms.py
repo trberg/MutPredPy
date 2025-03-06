@@ -99,11 +99,24 @@ class Mechanisms:
                 propx = Mechanisms.vectorized_get_properties_from_propx(
                     catalog, catalog_job
                 )
-                for i, mechs in enumerate(properties):
-                    for mech in mechs:
-                        if mechs[mech] != propx[i][mech]:
-                            print(mechs[mech])
-                            print(propx[i][mech])
+                for i, prop in enumerate(properties):
+
+                    comparison = prop.merge(propx[i], on="Property", how="inner")
+                    comparison = comparison[
+                        (
+                            comparison["Posterior Probability_x"]
+                            != comparison["Posterior Probability_y"]
+                        )
+                        | (comparison["P-value_x"] != comparison["P-value_y"])
+                        | (
+                            comparison["Effected Position_x"]
+                            != comparison["Effected Position_y"]
+                        )
+                        | (comparison["Type_x"] != comparison["Type_y"])
+                    ]
+                    if len(comparison) > 0:
+                        print(job)
+                        print(comparison)
 
             return properties
 

@@ -52,9 +52,9 @@ class Catalog:
         neutral_properties = self.load_neutral_distributions()
 
         self.neutral_property_cols = [
-            neuts[0].replace("-", "_")
-            for neuts in neutral_properties.get("neut_properties").flatten()
+            col.replace("-", "_") for col in neutral_properties.columns
         ]
+
         self.property_names = [
             p.replace("_gain", "")
             for p in self.neutral_property_cols
@@ -76,18 +76,19 @@ class Catalog:
         )
 
         # Load null distributions
-        self.null_distributions_array = neutral_properties.get("neut_ntrans_feats")
-        self.null_gain_distributions_array = self.null_distributions_array[
+        null_distributions_array = neutral_properties.to_numpy()
+
+        self.null_gain_distributions_array = null_distributions_array[
             :, neutral_property_gain_cols
         ]
-        self.null_loss_distributions_array = self.null_distributions_array[
+
+        self.null_loss_distributions_array = null_distributions_array[
             :, neutral_property_loss_cols
         ]
 
-        self.n = self.null_distributions_array.shape[0]
-        self.null_distributions = pd.DataFrame(
-            data=self.null_distributions_array, columns=self.neutral_property_cols
-        )
+        self.n = null_distributions_array.shape[0]
+
+        self.null_distributions = neutral_properties
 
         # Feature columns
         self.feature_columns = self.load_feature_columns()
@@ -96,11 +97,14 @@ class Catalog:
         """
         Loads the null distributions for the MutPred2 features to calculated p-values
         """
-        dists = sio.loadmat(
+        dists = pd.read_csv(
             pkg_resources.files("mutpredpy").joinpath(
-                "pkg_resources", "pu_features_null_distributions.mat"
-            )
-        )
+                "pkg_resources", "neutral_property_distributions.csv"
+            ),
+            sep="\t",
+            dtype=str,
+        ).astype(np.float64)
+
         return dists
 
     def load_feature_columns(self):
@@ -228,7 +232,7 @@ class Catalog:
         """
 
         job_dirs = self.get_valid_jobs()
-
+        job_dirs = ["1", "2"]
         number_of_jobs = len(job_dirs)
         cur_job = 0
         self.print_progress(cur_job, number_of_jobs)
