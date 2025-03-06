@@ -32,9 +32,12 @@ class Catalog:
             dry_run (bool): Run without saving changes.
         """
 
+        os.environ["KMP_WARNINGS"] = "0"  # Disables OpenMP warnings
+        os.environ["OMP_DISPLAY_ENV"] = "FALSE"  # Hides OpenMP environment messages
+
         u.set_logger_level(log_level=20)
 
-        self.job_dir = self.check_jobs_directory(job_dir)
+        self.__job_dir, self.__valid_jobs = self.check_jobs_directory(job_dir)
         self.catalog_location = u.catalog_directory()
 
         self.dry_run = dry_run
@@ -115,6 +118,24 @@ class Catalog:
         )
         return feat_cols
 
+    def get_job_dir(self):
+        """
+        Retrieves the absolute path of the MutPred2 job directory.
+
+        Returns:
+            str: The absolute path of the job directory.
+        """
+        return self.__job_dir
+
+    def get_valid_jobs(self):
+        """
+        Retrieves a list of valid jobs.
+
+        Returns:
+            list: A list of valid job folders available in the job directory.
+        """
+        return self.__valid_jobs
+
     def check_jobs_directory(self, job_dir):
         """
         Validates the given job directory and its contents.
@@ -130,6 +151,7 @@ class Catalog:
         """
 
         discrepancies = []
+        jobs = []
         job_pattern = re.compile(
             r"^(job_\d+|\d+)$"
         )  # Pattern for "job_<number>" or just a number.
@@ -157,6 +179,8 @@ class Catalog:
                     discrepancies.append(
                         f"Missing files in job '{job}': {', '.join(missing_files)}\n"
                     )
+                else:
+                    jobs.append(job)
             else:
                 # If it's not a valid job folder, flag it
                 if os.path.isdir(job_path):
@@ -165,11 +189,14 @@ class Catalog:
                     discrepancies.append(f"Unexpected file: {job}\n")
 
         if len(discrepancies) > 0:
-            raise ValueError(
-                f"Issues found in job directory {job_path}.\n{''.join(discrepancies)}"
-            )
+            logger.info("Issues found in job directory %s.", job_dir)
+            for disc in discrepancies:
+                logger.info(disc)
 
-        return job_dir
+        if len(jobs) == 0:
+            raise ValueError(f"No valid job folders found in {job_path}")
+
+        return job_dir, jobs
 
     def print_progress(self, cur_job, number_of_jobs, end="\r"):
         """
@@ -200,8 +227,7 @@ class Catalog:
             pd.DataFrame: DataFrame containing cataloged job information.
         """
 
-        job_dirs = os.listdir(self.job_dir)
-        # job_dirs = ["263"]
+        job_dirs = self.get_valid_jobs()
 
         number_of_jobs = len(job_dirs)
         cur_job = 0
@@ -209,7 +235,7 @@ class Catalog:
 
         for job in job_dirs:
 
-            job_path = os.path.join(self.job_dir, job)
+            job_path = os.path.join(self.get_job_dir(), job)
 
             catalog_job = CatalogJob(job_path, self)
 
