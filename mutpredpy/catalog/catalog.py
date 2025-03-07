@@ -231,6 +231,7 @@ class Catalog:
         """
 
         job_dirs = self.get_valid_jobs()
+        # job_dirs = ["7718"]
 
         number_of_jobs = len(job_dirs)
         cur_job = 0

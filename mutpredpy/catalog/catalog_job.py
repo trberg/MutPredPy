@@ -86,21 +86,12 @@ class CatalogJob:
 
         self.__job_path = job_path
         self.__catalog = catalog
+        self._mutations = self.get_mutations()
+        self._num_mutations = len(self._mutations)
+        self._sequences = self.get_sequences()
 
-        self.__num_files = len(
-            [
-                position_file
-                for position_file in os.listdir(job_path)
-                if re.search(r"positions_pu_\d+.mat", position_file)
-            ]
-        )
-        self.__file_sizes = [
-            sio.loadmat(position_file).get("positions_pu").shape[0]
-            for position_file in [
-                f"{job_path}/output.txt.positions_pu_{i+1}.mat"
-                for i in range(self.__num_files)
-            ]
-        ]
+        self.__num_files, self.__file_sizes = self.get_num_and_size_files()
+
         self._positions = self.get_positions()
 
     def get_job_path(self):
@@ -112,23 +103,92 @@ class CatalogJob:
         """
         return self.__job_path
 
-    def get_num_files(self):
+    def get_num_and_size_files(self):
         """
-        Retrieves the number of files for each output file.
+        Retrieves the maximum number of files for any output type and calculates file sizes.
 
         Returns:
-            int: The number of files per output type.
+            tuple: (num_files, file_sizes), where:
+                - num_files (int): The max number of files found per output type.
+                - file_sizes (list): A list containing the sizes of the most frequent file type.
         """
-        return self.__num_files
+
+        if hasattr(self, "__num_files") and hasattr(self, "__file_sizes"):
+            return self.__num_files, self.__file_sizes
+
+        compiled_patterns = [
+            re.compile(pattern)
+            for pattern in [
+                r"output\.txt\.(?P<key>feats)_\d+\.mat",
+                r"output\.txt\.(?P<key>models)_\d+\.mat",
+                r"output\.txt\.(?P<key>motif_info)_\d+\.mat",
+                r"output\.txt\.(?P<key>MutPred2Score)_\d+\.mat",
+                r"output\.txt\.(?P<key>notes)_\d+\.mat",
+                r"output\.txt\.(?P<key>positions)_\d+\.mat",
+                r"output\.txt\.(?P<key>positions_pu)_\d+\.mat",
+                r"output\.txt\.(?P<key>propX)_\d+\.mat",
+            ]
+        ]
+
+        # Initialize a counter for each pattern
+        file_counts = [0] * len(compiled_patterns)
+        file_groups = [[] for _ in range(len(compiled_patterns))]
+        key_map = {}  # Store mapping of files to their extracted keys
+
+        job_path = self.get_job_path()
+
+        # Scan files once, updating the respective counters
+        for job_file in os.listdir(job_path):
+            for i, pattern in enumerate(compiled_patterns):
+                match = pattern.search(job_file)
+                if match:
+                    file_counts[i] += 1
+                    full_path = os.path.join(job_path, job_file)
+                    file_groups[i].append(full_path)
+                    key_map[full_path] = match.group("key")
+
+        # Determine the file type with the maximum occurrences
+        max_num_files = max(file_counts)
+        max_index = file_counts.index(
+            max_num_files
+        )  # Get the index of the most frequent file type
+
+        # Extract the corresponding file group (files with max occurrences)
+        max_files = file_groups[max_index][
+            :max_num_files
+        ]  # Ensure we take only the expected number
+
+        # Load file sizes using the dynamically extracted key
+        file_sizes = []
+        for file in max_files:
+            key = key_map.get(file)  # Get the key from the stored mapping
+            mat_data = sio.loadmat(file)
+            if key in mat_data:  # Ensure the key exists in the loaded file
+                file_sizes.append(mat_data[key].shape[0])
+
+        # Store the max count
+        self.__num_files = max(file_counts)
+        self.__file_sizes = file_sizes
+
+        return self.__num_files, self.__file_sizes
 
     def get_file_sizes(self):
         """
-        Retrieves the size of each file output type.
+        Retrieves the sizes of the relevant output files in the job directory.
 
         Returns:
-            list: The size of each file output type.
+            dict: A dictionary containing file names as keys and their sizes as values.
         """
         return self.__file_sizes
+
+    def get_num_files(self):
+        """
+        Retrieves the total number of output files per type related to the job.
+
+        Returns:
+            int: The number of relevant output files in the job directory.
+        """
+        return self.__num_files
 
     def get_ids(self):
         """
@@ -153,14 +213,28 @@ class CatalogJob:
         Returns:
             np.ndarray: An array of mutation identifiers.
         """
+
+        if hasattr(self, "_mutations"):
+            return self._mutations
+
         mutations = os.path.join(self.get_job_path(), "output.txt.substitutions.mat")
-        muts_df = sio.loadmat(f"{mutations}").get("substitutions")
-        mutations = [
-            str(muts[0])
-            for mutation_list in muts_df.flatten()
-            for muts in mutation_list.flatten()
-        ]
-        return mutations
+        if os.path.exists(mutations):
+            muts_df = sio.loadmat(f"{mutations}").get("substitutions")
+            mutations = [
+                str(muts[0])
+                for mutation_list in muts_df.flatten()
+                for muts in mutation_list.flatten()
+            ]
+        else:
+            original_info = fasta.read_mutpred_input_fasta(
+                os.path.join(self.get_job_path(), "input.faa")
+            )
+            original_info = original_info["Substitution"].str.split(",")
+            mutations = original_info.explode().to_list()
+
+        self._mutations = mutations
+
+        return self._mutations
 
     def get_mutpred2_scores(self):
         """
@@ -204,6 +278,10 @@ class CatalogJob:
         Returns:
             None
         """
+        if not os.path.exists(
+            os.path.join(self.get_job_path(), "output.txt.feats_1.mat")
+        ):
+            return [pd.DataFrame() for i in range(self._num_mutations)]
 
         features = [
             sio.loadmat(
@@ -235,17 +313,30 @@ class CatalogJob:
         Returns:
             list: A list of sequence strings extracted from the job's output.
         """
-        sequences = sio.loadmat(
-            os.path.join(self.get_job_path(), "output.txt.sequences.mat")
-        ).get("sequences")
-        sequence_strings = [
-            str(item)
-            for sublist in sequences
-            for arr in sublist
-            for item in np.atleast_1d(arr)
-        ]
 
-        return sequence_strings
+        if hasattr(self, "_sequences"):
+            return self._sequences
+
+        sequence_file = os.path.join(self.get_job_path(), "output.txt.sequences.mat")
+        if os.path.exists(sequence_file):
+            sequences = sio.loadmat(os.path.join(sequence_file)).get("sequences")
+            sequence_strings = [
+                str(item)
+                for sublist in sequences
+                for arr in sublist
+                for item in np.atleast_1d(arr)
+            ]
+        else:
+            original_info = fasta.read_mutpred_input_fasta(
+                os.path.join(self.get_job_path(), "input.faa")
+            )
+            original_info["Substitution"] = original_info["Substitution"].str.split(",")
+            original_info = original_info.explode("Substitution")
+            sequence_strings = original_info["sequence"].to_list()
+
+        self._sequences = sequence_strings
+
+        return self._sequences
 
     def get_sequence_hash(self):
         """
@@ -278,6 +369,12 @@ class CatalogJob:
         if hasattr(self, "_positions"):
             return self._positions
 
+        position_file = os.path.join(
+            self.get_job_path(), "output.txt.positions_pu_1.mat"
+        )
+        if not os.path.exists(position_file):
+            return []
+
         sequences = self.get_sequences()
 
         position_files = [
@@ -287,13 +384,11 @@ class CatalogJob:
             for i in range(self.get_num_files())
         ]
 
-        positions = np.array(
-            [
-                np.array([f"{sequences[i][pos - 1]}{pos}" for pos in dim] + ["-"])
-                for i, pos_files in enumerate(position_files)
-                for dim in pos_files["positions_pu"]
-            ]
-        )
+        positions = [
+            np.array([f"{sequences[i][pos - 1]}{pos}" for pos in dim] + ["-"])
+            for i, pos_files in enumerate(position_files)
+            for dim in pos_files["positions_pu"]
+        ]
         return positions
 
     def get_motifs(self):
@@ -303,19 +398,25 @@ class CatalogJob:
         Returns:
             list: A list of motif strings extracted from the job's output.
         """
-        motifs = [
-            sio.loadmat(
-                os.path.join(self.get_job_path(), f"output.txt.motif_info_{i+1}.mat")
-            ).get("motif_info")
-            for i in range(self.get_num_files())
-        ]
+        motif_file = os.path.join(self.get_job_path(), "output.txt.motif_info_1.mat")
+        if os.path.exists(motif_file):
+            motifs = [
+                sio.loadmat(
+                    os.path.join(
+                        self.get_job_path(), f"output.txt.motif_info_{i+1}.mat"
+                    )
+                ).get("motif_info")
+                for i in range(self.get_num_files())
+            ]
 
-        motif_strings = [
-            f"Altered Motifs ({str(motif_string[0])})"
-            for motif_file in motifs
-            for motif_arry in motif_file
-            for motif_string in motif_arry
-        ]
+            motif_strings = [
+                f"Altered Motifs ({str(motif_string[0])})"
+                for motif_file in motifs
+                for motif_arry in motif_file
+                for motif_string in motif_arry
+            ]
+        else:
+            motif_strings = ["-" for i in range(self._num_mutations)]
 
         return motif_strings
 
@@ -326,22 +427,26 @@ class CatalogJob:
         Returns:
             list: A list of formatted remark strings corresponding to mutation-related notes.
         """
-        note_indices = np.vstack(
-            [
-                sio.loadmat(
-                    os.path.join(self.get_job_path(), f"output.txt.notes_{i+1}.mat")
-                ).get("notes")
-                for i in range(self.get_num_files())
-            ]
-        )
+        note_file = os.path.join(self.get_job_path(), "output.txt.notes_1.mat")
+        if os.path.exists(note_file):
+            note_indices = np.vstack(
+                [
+                    sio.loadmat(
+                        os.path.join(self.get_job_path(), f"output.txt.notes_{i+1}.mat")
+                    ).get("notes")
+                    for i in range(self.get_num_files())
+                ]
+            )
 
-        def map_indices_to_strings(index_lists):
-            remarks = [self.remarks_list[i] for i in index_lists if i == 1]
-            if len(remarks) == 0:
-                return "-"
-            return ". ".join(remarks)
+            def map_indices_to_strings(index_lists):
+                remarks = [self.remarks_list[i] for i in index_lists if i == 1]
+                if len(remarks) == 0:
+                    return "-"
+                return ". ".join(remarks)
 
-        remarks = [map_indices_to_strings(note) for note in note_indices]
+            remarks = [map_indices_to_strings(note) for note in note_indices]
+        else:
+            remarks = ["-" for sub in range(self._num_mutations)]
 
         return remarks
 
@@ -400,10 +505,10 @@ class CatalogJob:
                 yaml.dump(
                     mutpred_data, yaml_file, default_flow_style=False, sort_keys=False
                 )
-            if self.__catalog.features:
+            if self.__catalog.features and not mut_features.empty:
                 mut_features.to_csv(features_path, sep="\t", index=False)
 
-            if self.__catalog.mechanisms:
+            if self.__catalog.mechanisms and self.get_positions():
                 mut_mechanisms.to_csv(mechanisms_path, sep="\t", index=False)
 
     def sort_by_p_value(self, data_dict):
@@ -426,6 +531,54 @@ class CatalogJob:
         )
 
         return sorted_items
+
+    def string_format_mechanism(self, cur_mechanism):
+        """
+        Formats molecular mechanism data into a readable string representation.
+
+        Args:
+            cur_mechanism (pd.DataFrame): DataFrame containing mechanism-related data with
+                                        columns for property, probability, p-value,
+                                        affected position, and mutation type.
+
+        Returns:
+            str: A formatted string summarizing the mechanisms with relevant probabilities
+                and affected positions.
+        """
+        cur_mechanism = cur_mechanism[
+            (cur_mechanism["P-value"] < 1)
+            & (cur_mechanism["Posterior Probability"] >= 0.01)
+            & (cur_mechanism["Property"] != "Motifs")
+        ]
+        cur_mechanism = cur_mechanism.sort_values("P-value")
+
+        formatted_mechanisms = []
+
+        def mech_format(row):
+            mech = row["Property"]
+            post_pr = row["Posterior Probability"]
+            pval = row["P-value"]
+            eff_pos = row["Effected Position"]
+            mut_type = row["Type"]
+
+            if mech in self.Region and mech in self.Altered:
+                mech_formatted = f"Altered {mech} (Pr = {round(post_pr, 2)}| P = {round(pval, 2)})"  # pylint: disable=C0301
+                return mech_formatted
+            if mech in self.Altered:
+                mech_formatted = f"Altered {mech} at {eff_pos} (Pr = {round(post_pr, 2)}| P = {round(pval, 2)})"  # pylint: disable=C0301
+                return mech_formatted
+            if mech in self.Region:
+                mech_formatted = f"{mut_type} of {mech} (Pr = {round(post_pr, 2)} | P = {round(pval, 2)})"  # pylint: disable=C0301
+                return mech_formatted
+
+            mech_formatted = f"{mut_type} of {mech} at {eff_pos} (Pr = {round(post_pr, 2)} | P = {round(pval, 2)})"  # pylint: disable=C0301
+            return mech_formatted
+
+        formatted_mechanisms = [mech_format(row) for i, row in cur_mechanism.iterrows()]
+
+        formatted_mechanisms = "; ".join(formatted_mechanisms)
+
+        return formatted_mechanisms
 
     def standard_mutpred2_output_format(
         self,
@@ -451,35 +604,16 @@ class CatalogJob:
         """
 
         formatted_mechanisms = []
-        sorted_mechanisms = self.sort_by_p_value(mechanisms)
+        sorted_mechanisms = self.sort_by_p_value(mechanisms.sort_values(""))
 
-        for mech, info in sorted_mechanisms:
-            if info["P-value"] < 1 and info["Posterior Probability"] >= 0.01:
-                mech = self.updated_property_list.get(mech, mech)
-
-                if mech == "Motifs":
-                    pass
-                    # print(f"Altered {mech}")
-                elif mech in self.Region and mech in self.Altered:
-                    mech_formatted = f"Altered {mech} (Pr = {round(info['Posterior Probability'], 2)}| P = {round(info['P-value'], 2)})"  # pylint: disable=C0301
-                    formatted_mechanisms.append(mech_formatted)
-                elif mech in self.Altered:
-                    mech_formatted = f"Altered {mech} at {info['Effected Position']} (Pr = {round(info['Posterior Probability'], 2)}| P = {round(info['P-value'], 2)})"  # pylint: disable=C0301
-                    formatted_mechanisms.append(mech_formatted)
-                elif mech in self.Region:
-                    mech_formatted = f"{info['Type']} of {mech} (Pr = {round(info['Posterior Probability'], 2)} | {round(info['P-value'], 2)})"  # pylint: disable=C0301
-                    formatted_mechanisms.append(mech_formatted)
-                else:
-                    mech_formatted = f"{info['Type']} of {mech} at {info['Effected Position']} (Pr = {round(info['Posterior Probability'], 2)} | {round(info['P-value'], 2)})"  # pylint: disable=C0301
-                    formatted_mechanisms.append(mech_formatted)
+        for _, info in sorted_mechanisms:
+            formatted_mechanisms = [self.string_format_mechanism(info)]
 
         data = {
             "ID": prot_id,
             "Substitution": mutation,
             "MutPred2 score": score,
-            "Molecular mechanisms with Pr >= 0.01 and P < 1.00": "; ".join(
-                formatted_mechanisms
-            ),
+            "Molecular mechanisms with Pr >= 0.01 and P < 1.00": formatted_mechanisms,
             "Motif information": motif,
             "Remarks": remarks,
         }
@@ -498,21 +632,29 @@ class CatalogJob:
                         including substitutions, mechanisms, motifs, and remarks.
         """
 
+        # Retrieve MutPred2 scores for the identified mutations
+        mutpred2_scores = self.get_mutpred2_scores()
+
+        # If no scores found, assume this is an incomplete job and end function
+        if not mutpred2_scores:
+            return
+
         # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
 
         # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
 
-        # Retrieve MutPred2 scores for the identified mutations
-        mutpred2_scores = self.get_mutpred2_scores()
-
         # Collect mechanisms if cataloging mechanisms is enabled
-        if self.__catalog.mechanisms:
+        if self.__catalog.mechanisms and self.get_positions():
             mechanisms = Mechanisms.collect_mechanisms(catalog, self)
+            # string_formated_mechanisms = [
+            #    self.string_format_mechanism(mech) for mech in mechanisms
+            # ]
         else:
             # If mechanisms are not collected, fill with None values
-            mechanisms = [None for i in range(substitutions)]
+            mechanisms = [None for i in substitutions]
+            # string_formated_mechanisms = ["-" for i in substitutions]
 
         # Extract motif information related to the mutations
         motifs = self.get_motifs()
@@ -525,7 +667,7 @@ class CatalogJob:
             features = self.get_features()
         else:
             # If features are not collected, fill with None values
-            features = [None for i in range(substitutions)]
+            features = [pd.DataFrame() for sub in range(substitutions)]
 
         # Iterate over each mutation and store relevant data in the catalog
         for i, sub in enumerate(substitutions):
@@ -538,3 +680,16 @@ class CatalogJob:
                 remarks[i],  # Remarks or notes related to the mutation
                 features[i],  # Additional extracted features (if available)
             )
+
+        # print(
+        #     pd.DataFrame(
+        #         {
+        #             "Substitution": substitutions,
+        #             "MutPred2 Scores": mutpred2_scores,
+        #             "Mechanisms": string_formated_mechanisms,
+        #             "Motifs": motifs,
+        #             "Remarks": remarks,
+        #         }
+        #     )
+        # )
+        # exit()
