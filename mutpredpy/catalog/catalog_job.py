@@ -620,7 +620,58 @@ class CatalogJob:
 
         return data
 
-    def process_job(self, catalog):
+    def already_processed(self, sequence_hashes, substitutions):
+        """
+        Checks if the given mutations have already been processed and stored in the catalog.
+
+        Args:
+            sequence_hashes (list): List of sequence hash values.
+            substitutions (list): List of mutation substitutions.
+
+        Returns:
+            bool: True if all mutations have been processed and stored, otherwise False.
+        """
+
+        for i, mutation in enumerate(substitutions):
+
+            pos = re.search(r"\d+", mutation).group()
+            _, alt = mutation.split(pos)
+
+            try:
+                mutation_path = os.path.join(
+                    self.__catalog.catalog_location,
+                    "scores",
+                    sequence_hashes[i],
+                    pos,
+                    alt,
+                )
+            except IndexError:
+                print(self.get_job_path())
+                print(substitutions)
+                print(sequence_hashes)
+                exit()
+            scores_path = os.path.join(mutation_path, "output.yaml")
+            mechs_path = os.path.join(mutation_path, "mechanisms.csv")
+            feats_path = os.path.join(mutation_path, "features.csv")
+
+            scores_status = os.path.exists(scores_path)
+
+            if self.__catalog.mechanisms:
+                mech_status = os.path.exists(mechs_path)
+            else:
+                mech_status = True
+
+            if self.__catalog.features:
+                feats_status = os.path.exists(feats_path)
+            else:
+                feats_status = True
+
+            if not (scores_status and mech_status and feats_status):
+                return False
+
+        return True
+
+    def process_job(self):
         """
         Processes a MutPred2 job by extracting and cataloging mutation-related data.
 
@@ -645,9 +696,12 @@ class CatalogJob:
         # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
 
+        if self.already_processed(sequence_hashes, substitutions):
+            return
+
         # Collect mechanisms if cataloging mechanisms is enabled
         if self.__catalog.mechanisms and self.get_positions():
-            mechanisms = Mechanisms.collect_mechanisms(catalog, self)
+            mechanisms = Mechanisms.collect_mechanisms(self.__catalog, self)
             # string_formated_mechanisms = [
             #    self.string_format_mechanism(mech) for mech in mechanisms
             # ]
@@ -667,7 +721,7 @@ class CatalogJob:
             features = self.get_features()
         else:
             # If features are not collected, fill with None values
-            features = [pd.DataFrame() for sub in range(substitutions)]
+            features = [pd.DataFrame() for sub in substitutions]
 
         # Iterate over each mutation and store relevant data in the catalog
         for i, sub in enumerate(substitutions):

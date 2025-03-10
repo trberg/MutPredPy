@@ -231,7 +231,7 @@ class Catalog:
         """
 
         job_dirs = self.get_valid_jobs()
-        # job_dirs = ["7718"]
+        # job_dirs = ["7716"]
 
         number_of_jobs = len(job_dirs)
         cur_job = 0
@@ -243,7 +243,7 @@ class Catalog:
 
             catalog_job = CatalogJob(job_path, self)
 
-            catalog_job.process_job(self)
+            catalog_job.process_job()
 
             cur_job += 1
 
