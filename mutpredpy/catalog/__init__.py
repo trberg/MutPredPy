@@ -5,6 +5,6 @@ It defines the `__all__` variable to explicitly declare that only the `Catalog`
 class should be exposed when using `from module import *`.
 """
 
-from .catalog import Catalog
+from .catalog import Catalog, CatalogJob
 
-__all__ = ["Catalog"]
+__all__ = ["Catalog", "CatalogJob"]

@@ -114,11 +114,7 @@ class Protein:
 
         output[detected_order] = output["ID"].str.split("|", expand=True)
 
-        for prot in ptg_ids:
-            if prot not in detected_order:
-                output[prot] = None
-
-        return output[ptg_ids + ["sequence_hash"]]
+        return output[detected_order]
 
 
 def check_sequences(row, col_mapping):

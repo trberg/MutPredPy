@@ -293,6 +293,7 @@ class CatalogJob:
         all_features = np.array(
             [feat_arry for feat_file in features for feat_arry in feat_file]
         )
+
         feature_column_info = self.__catalog.load_feature_columns()
 
         def add_feature_weights(feature_weights, feature_columns):
@@ -300,7 +301,7 @@ class CatalogJob:
             return feature_columns
 
         output_features = [
-            add_feature_weights(feature_array, feature_column_info)
+            add_feature_weights(feature_array, feature_column_info.copy())
             for feature_array in all_features
         ]
 
