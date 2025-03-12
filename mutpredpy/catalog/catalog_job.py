@@ -386,7 +386,17 @@ class CatalogJob:
         ]
 
         positions = [
-            np.array([f"{sequences[i][pos - 1]}{pos}" for pos in dim] + ["-"])
+            np.array(
+                [
+                    (
+                        f"{sequences[i][pos - 1]}{pos}"
+                        if 0 < pos <= len(sequences[i])
+                        else "INVALID"
+                    )
+                    for pos in dim
+                ]
+                + ["-"]
+            )
             for i, pos_files in enumerate(position_files)
             for dim in pos_files["positions_pu"]
         ]

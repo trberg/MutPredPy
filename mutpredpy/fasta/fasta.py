@@ -42,6 +42,9 @@ class Protein:
         "RefSeq_r": re.compile(r"\b[NX]M\_\d+(\.\d+)?\b"),
         "RefSeq_g": re.compile(r"\b[AN][CGTWZ]\_\d+(\.\d+)?\b"),
     }
+    protein_position = {
+        "Position": re.compile(r"\b[0-3]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]\b")
+    }
     all_protein_transcript_gene_ids = [
         "ENSP",
         "ENST",
@@ -92,8 +95,9 @@ class Protein:
         Returns:
             pd.DataFrame: DataFrame with split ID components.
         """
-        protein_patterns = Protein.protein_transcript_regex
-        ptg_ids = Protein.all_protein_transcript_gene_ids
+        protein_patterns = {}
+        protein_patterns.update(Protein.protein_transcript_regex)
+        protein_patterns.update(Protein.protein_position)
 
         master_protein_key = "|".join([p.pattern for p in protein_patterns.values()])
 
