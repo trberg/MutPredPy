@@ -38,7 +38,7 @@ class Protein:
         "Uniprot": re.compile(
             r"\b([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9])){1,2}(-\d{1,2})?\b"
         ),
-        "RefSeq_p": re.compile(r"\b[ANYXW]P\_\d+(\.\d+)?\b"),
+        "RefSeq_p": re.compile(r"\b[ANYXW]P\_\d+((\.|\_)\d+)?\b"),
         "RefSeq_r": re.compile(r"\b[NX]M\_\d+(\.\d+)?\b"),
         "RefSeq_g": re.compile(r"\b[AN][CGTWZ]\_\d+(\.\d+)?\b"),
     }
@@ -117,6 +117,11 @@ class Protein:
                     detected_order.append(id_type)
 
         output[detected_order] = output["ID"].str.split("|", expand=True)
+
+        for det in detected_order:
+            output[det] = output[det].apply(
+                lambda x: re.sub(r"NP_(\d+)_(\d+)", r"NP_\1.\2", x)
+            )
 
         return output[detected_order]
 
