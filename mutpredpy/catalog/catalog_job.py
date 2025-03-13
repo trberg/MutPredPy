@@ -201,9 +201,23 @@ class CatalogJob:
             os.path.join(self.get_job_path(), "input.faa")
         )
         input_file = input_file.filter(["ID", "Substitution"])
-        input_file["Substitution"] = input_file["Substitution"].str.split(",")
+
+        def remove_duplicates(lst):
+            seen = set()
+            result = []
+            for item in lst:
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+
+            return result
+
+        input_file["Substitution"] = (
+            input_file["Substitution"].str.split(",").apply(remove_duplicates)
+        )
         input_file = input_file.explode("Substitution")
         input_file = input_file["ID"].to_list()
+
         return input_file
 
     def get_mutations(self):
