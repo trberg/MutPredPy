@@ -86,11 +86,11 @@ class CatalogJob:
 
         self.__job_path = job_path
         self.__catalog = catalog
-        self._mutations = self.get_mutations()
-        self._num_mutations = len(self._mutations)
         self._sequences = self.get_sequences()
 
         self.__num_files, self.__file_sizes = self.get_num_and_size_files()
+        self._mutations = self.get_mutations()
+        self._num_mutations = len(self._mutations)
 
         self._positions = self.get_positions()
 
@@ -234,11 +234,13 @@ class CatalogJob:
         mutations = os.path.join(self.get_job_path(), "output.txt.substitutions.mat")
         if os.path.exists(mutations):
             muts_df = sio.loadmat(f"{mutations}").get("substitutions")
+
             mutations = [
                 str(muts[0])
-                for mutation_list in muts_df.flatten()
-                for muts in mutation_list.flatten()
+                for f in range(self.get_num_files())
+                for muts in muts_df.flatten()[f].flatten()
             ]
+
         else:
             original_info = fasta.read_mutpred_input_fasta(
                 os.path.join(self.get_job_path(), "input.faa")
