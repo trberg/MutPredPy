@@ -1,7 +1,7 @@
 """
 Catalog Module for MutPredPy
 
-This module handles job cataloging, including checking directories, 
+This module handles job cataloging, including checking directories,
 loading features, and collecting mechanisms from MutPred2 outputs.
 """
 
@@ -156,7 +156,7 @@ class Catalog:
         discrepancies = []
         jobs = []
         job_pattern = re.compile(
-            r"^(job_\d+|\d+)$"
+            r"^(job(s)?_\d+|\d+)$"
         )  # Pattern for "job_<number>" or just a number.
 
         # Check if the job directory exists
