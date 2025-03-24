@@ -1,7 +1,7 @@
 """
 Mechanisms Module for MutPredPy
 
-This module handles the extraction, processing, and analysis of molecular mechanisms 
+This module handles the extraction, processing, and analysis of molecular mechanisms
 from MutPred2 output files, including computing p-values and integrating mechanism data.
 """
 
@@ -128,7 +128,7 @@ class Mechanisms:
 
             return properties
 
-        return None
+        return pd.DataFrame()
 
     @staticmethod
     def get_property_scores_and_pvalues(catalog, catalog_job, job):
@@ -265,7 +265,7 @@ class Mechanisms:
                     "Property": catalog.property_names,
                     "Posterior Probability": max_scores[i],
                     "P-value": p_values[i],
-                    "Effected Position": positions[i],
+                    "Effected Position": positions[i] if positions else "-",
                     "Type": [
                         "Gain" if mech_type else "Loss" for mech_type in mech_gains[i]
                     ],
