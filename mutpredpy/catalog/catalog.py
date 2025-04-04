@@ -7,14 +7,17 @@ loading features, and collecting mechanisms from MutPred2 outputs.
 
 import os
 import re
+import sys
 import importlib.resources as pkg_resources
 import logging
 import numpy as np
 import pandas as pd
+from mpi4py import MPI
 
 from .catalog_job import CatalogJob
 from ..utils import utils as u
 
+# Initialize Logger
 logger = logging.getLogger()
 
 
@@ -216,10 +219,11 @@ class Catalog:
         cur_percentage = cur_job / number_of_jobs
         cur_progress = int(50 * cur_percentage)
         remaining_progress = 50 - cur_progress
+
         print(
-            f" [{'=' * cur_progress}{' ' * remaining_progress}] {round((cur_percentage)*100, 1)}%",
-            end=end,
+            f"[{'=' * cur_progress}{' ' * remaining_progress}] {round((cur_percentage)*100, 1)}%",
         )
+        sys.stdout.flush()
 
     def catalog_jobs(self):
         """
@@ -230,26 +234,68 @@ class Catalog:
             pd.DataFrame: DataFrame containing cataloged job information.
         """
 
-        job_dirs = self.get_valid_jobs()
-        # job_dirs = ["7716"]
+        # Initialize MPI
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()  # Process ID
+        size = comm.Get_size()  # Total number of processes
 
-        number_of_jobs = len(job_dirs)
+        if rank == 0:
+
+            job_dirs = self.get_valid_jobs()
+            # job_dirs = ["7716"]
+            job_chunks = [job_dirs[i::size] for i in range(size)]
+
+            number_of_processes = len(job_chunks)
+            total_jobs = sum([len(j) for j in job_chunks])
+
+            logger.info(
+                "%s processes processing %d jobs", number_of_processes, total_jobs
+            )
+
+        else:
+            job_chunks = None
+
+        job_chunk = comm.scatter(job_chunks, root=0)
+        num_jobs = len(job_chunk)
         cur_job = 0
-        self.print_progress(cur_job, number_of_jobs)
+        done = False
 
-        for job in job_dirs:
+        while not done:
+            if cur_job < num_jobs:
+                job = job_chunk[cur_job]
+                job_path = os.path.join(self.get_job_dir(), job)
 
-            job_path = os.path.join(self.get_job_dir(), job)
+                catalog_job = CatalogJob(job_path, self)
 
-            catalog_job = CatalogJob(job_path, self)
+                catalog_job.process_job()
 
-            catalog_job.process_job()
+                cur_job += 1
 
-            cur_job += 1
+            # Send current progress to rank 0
+            all_progress = comm.gather(cur_job, root=0)
 
-            self.print_progress(cur_job, number_of_jobs)
+            if rank == 0:
+                total_done = sum(all_progress)
+                self.print_progress(total_done, total_jobs)
+                # print("", end="")
+                # print(cur_job, total_done, total_jobs)
+                # print(all_progress)
 
-        self.print_progress(cur_job, number_of_jobs, end="\n")
+                if total_done >= total_jobs:
+                    done = True
+
+            # Broadcast the done flag to all ranks
+            done = comm.bcast(done, root=0)
+
+        # logger.info("Rank %s: Finished processing. Waiting at first barrier...", rank)
+        comm.Barrier()  # Ensure all ranks finish processing
+
+        if rank == 0:
+            all_progress = comm.gather(cur_job, root=0)
+            total_done = sum(all_progress)
+            self.print_progress(total_done, total_jobs, end="\n")
+        else:
+            comm.gather(cur_job, root=0)
 
 
 if __name__ == "__main__":

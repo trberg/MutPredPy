@@ -17,11 +17,18 @@ Author: Timothy Bergquist
 from typing import Optional
 import typer
 
+from mpi4py import MPI
+
 # Local module imports
 from .prep import prep
 from .status import status
 from .merge import merge
 from .catalog import Catalog
+
+# Initialize MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()  # Process ID
+size = comm.Get_size()  # Total number of processes
 
 app = typer.Typer()
 
@@ -137,9 +144,15 @@ def catalog_results(
     ),
 ):
     """Catalog all mutpred scores from a given job directory"""
-    Catalog(
-        job_dir=job_dir, mechanisms=mechanisms, features=features, dry_run=dry_run
-    ).catalog_jobs()
+    if rank == 0:
+        cat = Catalog(
+            job_dir=job_dir, mechanisms=mechanisms, features=features, dry_run=dry_run
+        )
+    else:
+        cat = None
+
+    cat = comm.bcast(cat, root=0)
+    cat.catalog_jobs()
 
 
 def main():
