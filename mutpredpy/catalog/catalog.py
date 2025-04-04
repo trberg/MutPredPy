@@ -41,6 +41,7 @@ class Catalog:
 
         self.__job_dir, self.__valid_jobs = self.check_jobs_directory(job_dir)
         self.catalog_location = u.catalog_directory()
+        print(f"Writing to {self.catalog_location}")
 
         self.dry_run = dry_run
         self.mechanisms = mechanisms

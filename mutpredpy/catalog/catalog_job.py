@@ -1,8 +1,8 @@
 """
 Catalog Job Module for MutPredPy
 
-This module handles job-specific cataloging operations for MutPred2, 
-including extracting mutations, mechanisms, motifs, features, remarks 
+This module handles job-specific cataloging operations for MutPred2,
+including extracting mutations, mechanisms, motifs, features, remarks
 and sequence positions from job output files.
 """
 
