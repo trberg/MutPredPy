@@ -722,12 +722,13 @@ class CatalogJob:
 
         # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
-        print(f"Processing {set(sequence_hashes)}")
+        # print(f"Processing {set(sequence_hashes)}")
 
         # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
 
         if self.already_processed(sequence_hashes, substitutions):
+            print(f"Already exists {set(sequence_hashes)}")
             return
 
         # Collect mechanisms if cataloging mechanisms is enabled
