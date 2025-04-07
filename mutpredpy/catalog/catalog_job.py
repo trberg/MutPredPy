@@ -497,7 +497,7 @@ class CatalogJob:
         Returns:
             None
         """
-
+        print("In the write function")
         pos = re.search(r"\d+", mutation).group()
         _, alt = mutation.split(pos)
 
@@ -733,6 +733,7 @@ class CatalogJob:
 
         # Collect mechanisms if cataloging mechanisms is enabled
         if self.__catalog.mechanisms and self.get_positions():
+            print("Processing Mechanisms")
             mechanisms = Mechanisms.collect_mechanisms(self.__catalog, self)
             # string_formated_mechanisms = [
             #    self.string_format_mechanism(mech) for mech in mechanisms
@@ -750,6 +751,7 @@ class CatalogJob:
 
         # Collect feature data if cataloging features is enabled
         if self.__catalog.features:
+            print("Processing features")
             features = self.get_features()
         else:
             # If features are not collected, fill with None values
