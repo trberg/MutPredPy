@@ -529,13 +529,16 @@ class CatalogJob:
 
         else:
             with open(output_yaml_path, "wt", encoding="utf-8") as yaml_file:
+                print(f"Writing file {output_yaml_path}")
                 yaml.dump(
                     mutpred_data, yaml_file, default_flow_style=False, sort_keys=False
                 )
             if self.__catalog.features and not mut_features.empty:
+                print(f"Writing file {mechanisms_path}")
                 mut_features.to_csv(features_path, sep="\t", index=False)
 
             if self.__catalog.mechanisms and self.get_positions():
+                print(f"Writing file {features_path}")
                 mut_mechanisms.to_csv(mechanisms_path, sep="\t", index=False)
 
     def sort_by_p_value(self, data_dict):
