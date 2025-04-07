@@ -256,13 +256,17 @@ class Catalog:
         else:
             job_chunks = None
 
-        for job_chunk in job_chunks:
-            for job in job_chunk:
-                job_path = os.path.join(self.get_job_dir(), job)
+        job_chunk = comm.scatter(job_chunks, root=0)
 
-                catalog_job = CatalogJob(job_path, self)
+        if job_chunk is None:
+            job_chunk = []
 
-                catalog_job.process_job()
+        for job in job_chunk:
+            job_path = os.path.join(self.get_job_dir(), job)
+
+            catalog_job = CatalogJob(job_path, self)
+
+            catalog_job.process_job()
 
         """job_chunk = comm.scatter(job_chunks, root=0)
         num_jobs = len(job_chunk)
