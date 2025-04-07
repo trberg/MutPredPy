@@ -722,6 +722,7 @@ class CatalogJob:
 
         # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
+        print(f"Processing {set(sequence_hashes)}")
 
         # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
@@ -737,7 +738,7 @@ class CatalogJob:
             # ]
         else:
             # If mechanisms are not collected, fill with None values
-            mechanisms = [None for i in substitutions]
+            mechanisms = [None for _ in substitutions]
             # string_formated_mechanisms = ["-" for i in substitutions]
 
         # Extract motif information related to the mutations
