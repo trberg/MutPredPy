@@ -680,6 +680,8 @@ class CatalogJob:
                 print(substitutions)
                 print(sequence_hashes)
                 exit()
+            print("Mutation paths created")
+
             scores_path = os.path.join(mutation_path, "output.yaml")
             mechs_path = os.path.join(mutation_path, "mechanisms.csv")
             feats_path = os.path.join(mutation_path, "features.csv")
@@ -690,11 +692,13 @@ class CatalogJob:
                 mech_status = os.path.exists(mechs_path)
             else:
                 mech_status = True
+            print(f"Mech Status: {mech_status}")
 
             if self.__catalog.features:
                 feats_status = os.path.exists(feats_path)
             else:
                 feats_status = True
+            print(f"Feat Status: {feats_path}")
 
             if not (scores_status and mech_status and feats_status):
                 return False
@@ -715,6 +719,7 @@ class CatalogJob:
 
         # Retrieve MutPred2 scores for the identified mutations
         mutpred2_scores = self.get_mutpred2_scores()
+        print("Scores collected")
 
         # If no scores found, assume this is an incomplete job and end function
         if not mutpred2_scores:
@@ -722,10 +727,11 @@ class CatalogJob:
 
         # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
-        # print(f"Processing {set(sequence_hashes)}")
+        print(f"Hashes collected")
 
         # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
+        print("Substitutions collected")
 
         if self.already_processed(sequence_hashes, substitutions):
             print(f"Already exists {set(sequence_hashes)}")
