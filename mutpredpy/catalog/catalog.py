@@ -256,7 +256,15 @@ class Catalog:
         else:
             job_chunks = None
 
-        job_chunk = comm.scatter(job_chunks, root=0)
+        for job_chunk in job_chunks:
+            for job in job_chunk:
+                job_path = os.path.join(self.get_job_dir(), job)
+
+                catalog_job = CatalogJob(job_path, self)
+
+                catalog_job.process_job()
+
+        """job_chunk = comm.scatter(job_chunks, root=0)
         num_jobs = len(job_chunk)
         cur_job = 0
         done = False
@@ -296,7 +304,7 @@ class Catalog:
             total_done = sum(all_progress)
             self.print_progress(total_done, total_jobs, end="\n")
         else:
-            comm.gather(cur_job, root=0)
+            comm.gather(cur_job, root=0)"""
 
 
 if __name__ == "__main__":
