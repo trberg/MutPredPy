@@ -680,7 +680,7 @@ class CatalogJob:
                 print(substitutions)
                 print(sequence_hashes)
                 exit()
-            print("Mutation paths created")
+            # print("Mutation paths created")
 
             scores_path = os.path.join(mutation_path, "output.yaml")
             mechs_path = os.path.join(mutation_path, "mechanisms.csv")
@@ -692,13 +692,13 @@ class CatalogJob:
                 mech_status = os.path.exists(mechs_path)
             else:
                 mech_status = True
-            print(f"Mech Status: {mech_status}")
+            # print(f"Mech Status: {mech_status}")
 
             if self.__catalog.features:
                 feats_status = os.path.exists(feats_path)
             else:
                 feats_status = True
-            print(f"Feat Status: {feats_path}")
+            # print(f"Feat Status: {feats_path}")
 
             if not (scores_status and mech_status and feats_status):
                 return False
@@ -719,7 +719,7 @@ class CatalogJob:
 
         # Retrieve MutPred2 scores for the identified mutations
         mutpred2_scores = self.get_mutpred2_scores()
-        print("Scores collected")
+        # print("Scores collected")
 
         # If no scores found, assume this is an incomplete job and end function
         if not mutpred2_scores:
@@ -727,11 +727,11 @@ class CatalogJob:
 
         # Retrieve unique sequence hashes for the input sequences
         sequence_hashes = self.get_sequence_hash()
-        print(f"Hashes collected")
+        # print(f"Hashes collected")
 
         # Extract mutations (substitutions) identified in the job
         substitutions = self.get_mutations()
-        print("Substitutions collected")
+        # print("Substitutions collected")
 
         if self.already_processed(sequence_hashes, substitutions):
             print(f"Already exists {set(sequence_hashes)}")
@@ -739,7 +739,7 @@ class CatalogJob:
 
         # Collect mechanisms if cataloging mechanisms is enabled
         if self.__catalog.mechanisms and self.get_positions():
-            print("Processing Mechanisms")
+            # print("Processing Mechanisms")
             mechanisms = Mechanisms.collect_mechanisms(self.__catalog, self)
             # string_formated_mechanisms = [
             #    self.string_format_mechanism(mech) for mech in mechanisms
@@ -757,7 +757,7 @@ class CatalogJob:
 
         # Collect feature data if cataloging features is enabled
         if self.__catalog.features:
-            print("Processing features")
+            # print("Processing features")
             features = self.get_features()
         else:
             # If features are not collected, fill with None values
