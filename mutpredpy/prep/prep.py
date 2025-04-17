@@ -10,6 +10,7 @@ import re
 import logging
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from ..fasta import fasta
 from ..computing import lsf
@@ -99,7 +100,7 @@ class Prepare:  # pylint: disable=R0902
             path = f"{self.get_working_dir()}/{self.__input}"
 
         if os.path.exists(path):
-            return path
+            return Path(path)
         raise FileNotFoundError(f"Input file {path} not found.")
 
     def get_input(self):
