@@ -91,7 +91,7 @@ class Prepare:  # pylint: disable=R0902
 
         else:
             logger.info(
-                "File input %s not found...trying %d/%s",
+                "File input %s not found...trying %s/%s",
                 self.__input,
                 self.get_working_dir(),
                 self.__input,
@@ -540,7 +540,7 @@ class Prepare:  # pylint: disable=R0902
         """
         if pre_mapped_numbers > len(data):
             log_error_message = (
-                "%s proteins dropped during sequence mapping.",
+                "%d proteins dropped during sequence mapping.",
                 pre_mapped_numbers - len(data),
             )
             logger.warning("%s", log_error_message)
@@ -552,7 +552,7 @@ class Prepare:  # pylint: disable=R0902
             log_error_message = f"{len(unmapped)} proteins have been dropped. No matching \
                 protein sequences found."
             logger.warning(
-                "%s (additional info in %d/errors.log)",
+                "%s (additional info in %s/errors.log)",
                 log_error_message,
                 self.get_log_folder(),
             )
@@ -716,14 +716,18 @@ class Prepare:  # pylint: disable=R0902
             return muts_status
 
         variant_data["seq_hash"] = variant_data["sequence"].apply(u.get_seq_hash)
-        variant_data["urls"] = variant_data.apply(
+        variant_data["scored_status"] = variant_data.apply(
             lambda x: mutation_scored(x["Substitution"], x["seq_hash"], cur_catalog),
             axis=1,
         )
 
-        print(cur_catalog)
+        variant_data["Substitution"] = variant_data["Substitution"].str.split(" ")
+        variant_data = variant_data.explode(["Substitution", "scored_status"])
+        variant_data = variant_data[variant_data["scored_status"] == False]
+
         print(variant_data)
-        exit()
+
+        variant_data.drop(["seq_hash", "scored_status"], axis=1, inplace=True)
 
         ## Estimate time to complete MutPred2 computations on a per protein level
         logger.info("Estimating time to completion")
