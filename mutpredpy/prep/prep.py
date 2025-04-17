@@ -705,7 +705,9 @@ class Prepare:  # pylint: disable=R0902
             for m in muts:
                 ref, pos, alt = u.AminoAcidMap.get_mutation_elements(m)
                 if os.path.exists(
-                    os.path.join(catalog_dir, seq_hash, pos, alt, "output.yaml")
+                    os.path.join(
+                        catalog_dir, "scores", seq_hash, pos, alt, "output.yaml"
+                    )
                 ):
                     muts_status.append(True)
                 else:
