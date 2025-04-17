@@ -268,48 +268,6 @@ class Catalog:
 
             catalog_job.process_job()
 
-        """job_chunk = comm.scatter(job_chunks, root=0)
-        num_jobs = len(job_chunk)
-        cur_job = 0
-        done = False
-
-        while not done:
-            if cur_job < num_jobs:
-                job = job_chunk[cur_job]
-                job_path = os.path.join(self.get_job_dir(), job)
-
-                catalog_job = CatalogJob(job_path, self)
-
-                catalog_job.process_job()
-
-                cur_job += 1
-
-            # Send current progress to rank 0
-            all_progress = comm.gather(cur_job, root=0)
-
-            if rank == 0:
-                total_done = sum(all_progress)
-                self.print_progress(total_done, total_jobs)
-                # print("", end="")
-                # print(cur_job, total_done, total_jobs)
-                # print(all_progress)
-
-                if total_done >= total_jobs:
-                    done = True
-
-            # Broadcast the done flag to all ranks
-            done = comm.bcast(done, root=0)
-
-        # logger.info("Rank %s: Finished processing. Waiting at first barrier...", rank)
-        comm.Barrier()  # Ensure all ranks finish processing
-
-        if rank == 0:
-            all_progress = comm.gather(cur_job, root=0)
-            total_done = sum(all_progress)
-            self.print_progress(total_done, total_jobs, end="\n")
-        else:
-            comm.gather(cur_job, root=0)"""
-
 
 if __name__ == "__main__":
 

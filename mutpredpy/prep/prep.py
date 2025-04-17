@@ -1,7 +1,7 @@
 """
 Preparation Module for MutPredPy
 
-This module handles the preparation of input data for MutPred2, including 
+This module handles the preparation of input data for MutPred2, including
 sequence mapping, mutation processing, and job distribution.
 """
 
@@ -696,6 +696,32 @@ class Prepare:  # pylint: disable=R0902
         # pylint: disable=W0511
         # TODO: filter out already scored mutations
         # self.variant_data = self.filtered_scored(self.variant_data)
+
+        cur_catalog = u.catalog_directory()
+
+        def mutation_scored(mut_str, seq_hash, catalog_dir):
+            muts_status = []
+            muts = mut_str.split(" ")
+            for m in muts:
+                ref, pos, alt = u.AminoAcidMap.get_mutation_elements(m)
+                if os.path.exists(
+                    os.path.join(catalog_dir, seq_hash, pos, alt, "output.yaml")
+                ):
+                    muts_status.append(True)
+                else:
+                    muts_status.append(False)
+
+            return muts_status
+
+        variant_data["seq_hash"] = variant_data["sequence"].apply(u.get_seq_hash)
+        variant_data["urls"] = variant_data.apply(
+            lambda x: mutation_scored(x["Substitution"], x["seq_hash"], cur_catalog),
+            axis=1,
+        )
+
+        print(cur_catalog)
+        print(variant_data)
+        exit()
 
         ## Estimate time to complete MutPred2 computations on a per protein level
         logger.info("Estimating time to completion")

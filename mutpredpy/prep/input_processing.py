@@ -280,18 +280,31 @@ def finalize_processed_input(df, validation_results):
     processed_output = pd.DataFrame()
 
     for i, results in validation_results.items():
-
+        # print(results)
+        # exit()
         ## Identify proteins and transcripts
+
         if results["found"] and i != "has_amino_acid_columns":
             processed_output[i] = df[results["column"]]
+
+        if results["found"] and (
+            (i == "ENSP" and validation_results["HGVSp"]["column"] == results["column"])
+            or (
+                i == "ENST"
+                and validation_results["HGVSc"]["column"] == results["column"]
+            )
+        ):
+            processed_output[i] = (
+                processed_output[results["column"]].str.split(":").str[0]
+            )
 
         ## Handle amino acid substitutions
         elif i == "has_amino_acid_columns":
 
-            ## If HGVSp IDs are found, ignore amino acid columns and just HGVSp annotated mutations
+            ## If HGVSp IDs are found, ignore amino acid columns and just use HGVSp annotated mutations
             if validation_results["HGVSp"]["found"]:
                 processed_output["Substitution"] = (
-                    df[validation_results["id_column"]]
+                    df[validation_results["HGVSp"]["column"]]
                     .str.split(":")
                     .str[-1]
                     .str.split("p.")
@@ -375,7 +388,11 @@ def check_validation_results(results, all_possible):
             in the input file. Requires ENSP, ENST, RefSeq, or Uniprot"
         )
 
-    if not all_possible and not amino_acid_columns_found:
+    if (
+        not all_possible
+        and not amino_acid_columns_found
+        and not results["HGVSp"]["found"]
+    ):
         raise ValueError(
             "No amino acid substitution information found in input file. Use the --all-possible \
                 flag to generate all possible amino acid substitutions in each protein/transcript."
@@ -404,7 +421,6 @@ def process_input(df, canonical, all_possible):
     """
     if is_vep_format(df):
         processed_input_df = parse_vep_output(df)
-
     else:
         processed_input_df = df.copy()
 
@@ -413,10 +429,6 @@ def process_input(df, canonical, all_possible):
     results = detect_proteins_transcripts_and_amino_acids(processed_input_df)
 
     check_validation_results(results, all_possible=all_possible)
-
-    ## ===========================================
-    ## TODO: Handle the all_possible=True scenario #pylint: disable=W0511
-    ## ===========================================
 
     processed_input_df = finalize_processed_input(processed_input_df, results)
 

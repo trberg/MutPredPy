@@ -1,7 +1,7 @@
 """
 Utilities Module for MutPredPy
 
-This module provides various utility functions used throughout MutPredPy, 
+This module provides various utility functions used throughout MutPredPy,
 including file handling, logging, sequence hashing, and configuration management.
 """
 
@@ -55,7 +55,7 @@ class AminoAcidMap:
     TRIPLETS_AA = r"Ala|Arg|Asn|Asp|Cys|Glu|Gln|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Sec|Thr|Trp|Tyr|Val"  # pylint: disable=C0301
 
     AA_SINGLE_LETTER_REGEX = f"^[{SINGLE_AA}]$"
-    AA_THREE_LETTER_REGEX = f"^(?i)({TRIPLETS_AA})$"
+    AA_THREE_LETTER_REGEX = f"^({TRIPLETS_AA})$"
     AA_COMBINED_REGEX = f"^[{SINGLE_AA}]/[{SINGLE_AA}]$"
     AA_ALTERNATIVE_REGEX = (
         rf"^([{SINGLE_AA}]|{TRIPLETS_AA})" rf"(\s*,\s*[{SINGLE_AA}]|{TRIPLETS_AA})*$"
@@ -217,6 +217,12 @@ class AminoAcidMap:
 
         return df
 
+    @staticmethod
+    def get_mutation_elements(mut):
+        loc = re.search(r"\d+", mut).group()  # Extract numeric position
+        ref, alt = mut.split(loc)  # Split reference and alternate residues
+        return [ref, loc, alt]
+
 
 def get_seq_hash(sequence):
     """
@@ -338,7 +344,7 @@ DRY_RUN_LEVEL = 25
 def dry_run(self, message, *args, **kwargs):
     """Log a message at the DRY RUN level."""
     if self.isEnabledFor(DRY_RUN_LEVEL):
-        self.log(DRY_RUN_LEVEL, message, args, **kwargs)
+        self.log(DRY_RUN_LEVEL, message, *args, **kwargs)
 
 
 def set_logger_level(log_level):

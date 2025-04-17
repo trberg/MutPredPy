@@ -239,7 +239,7 @@ def data_quality_check(prepare, data, col_mapping):
                 mutations in {len(not_passed)} proteins failed the quality check and \
                     have been removed."
         logger.warning(
-            "%s (additional info in %d/errors.log)",
+            "%s (additional info in %s/errors.log)",
             log_error_message,
             prepare.get_log_folder(),
         )
