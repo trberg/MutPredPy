@@ -12,6 +12,7 @@ import importlib.resources as pkg_resources
 
 import hashlib
 import yaml
+import pandas as pd
 
 
 logger = logging.getLogger()
@@ -221,7 +222,7 @@ class AminoAcidMap:
     def get_mutation_elements(mut):
         loc = re.search(r"\d+", mut).group()  # Extract numeric position
         ref, alt = mut.split(loc)  # Split reference and alternate residues
-        return [ref, loc, alt]
+        return pd.Series([ref, loc, alt])
 
 
 def get_seq_hash(sequence):

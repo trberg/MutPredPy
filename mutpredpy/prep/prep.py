@@ -725,10 +725,23 @@ class Prepare:  # pylint: disable=R0902
         variant_data["Substitution"] = variant_data["Substitution"].str.split(" ")
         variant_data = variant_data.explode(["Substitution", "scored_status"])
         variant_data = variant_data[variant_data["scored_status"] == False]
+        variant_data.drop(["seq_hash", "scored_status"], axis=1, inplace=True)
+        variant_data = (
+            variant_data.groupby(
+                [
+                    "ENSP",
+                    "sequence",
+                    "Memory Estimate (MB)",
+                    "Time per Mutation (hrs)",
+                    "status",
+                ]
+            )
+            .agg({"Substitution": list, "Sequence Errors": sum, "Mutation Errors": sum})
+            .reset_index()
+        )
+        variant_data["Substitution"] = variant_data["Substitution"].apply(" ".join)
 
         print(variant_data)
-
-        variant_data.drop(["seq_hash", "scored_status"], axis=1, inplace=True)
 
         ## Estimate time to complete MutPred2 computations on a per protein level
         logger.info("Estimating time to completion")
