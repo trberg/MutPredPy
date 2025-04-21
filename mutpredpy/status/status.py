@@ -1,8 +1,8 @@
 """
 Status Module for MutPredPy
 
-This module provides functionality to check the status of ongoing or completed 
-MutPred2 jobs, including monitoring job progress, retrieving logs, and handling 
+This module provides functionality to check the status of ongoing or completed
+MutPred2 jobs, including monitoring job progress, retrieving logs, and handling
 error reporting.
 """
 
@@ -430,13 +430,15 @@ class Status:
                         how="outer",
                         suffixes=("_faa", "_scored"),
                     ).fillna(0)
+                    print(current_status)
+
                     current_status["complete"] = current_status.apply(
-                        lambda x: x["num_mutations_faa"] == x["num_mutations_scored"],
+                        lambda x: x["num_substitution"] == x["num_mutations"],
                         axis=1,
                     )
 
-                    if sum(current_status["num_mutations_faa"]) == sum(
-                        current_status["num_mutations_scored"]
+                    if sum(current_status["num_substitution"]) == sum(
+                        current_status["num_mutations"]
                     ):
                         self.mark_as_completed(job)
 
@@ -447,9 +449,9 @@ class Status:
                     faa = self.retrieve_faas(job)
 
                     faa.rename(
-                        columns={"num_mutations": "num_mutations_faa"}, inplace=True
+                        columns={"num_mutations": "num_substitution"}, inplace=True
                     )
-                    faa["num_mutations_scored"] = faa["num_mutations_faa"]
+                    faa["num_mutations"] = faa["num_substitution"]
                     # faa["percent"] = 100.0
                     faa["complete"] = True
 
@@ -482,7 +484,7 @@ class Status:
 
         summary = (
             current_status.groupby(["index", "ID"])[
-                ["num_mutations_faa", "num_mutations_scored"]
+                ["num_substitution", "num_mutations"]
             ]
             .sum()
             .reset_index()
@@ -493,10 +495,10 @@ class Status:
         )
 
         summary["percent"] = round(
-            (summary["num_mutations_scored"] / summary["num_mutations_faa"]) * 100, 2
+            (summary["num_mutations"] / summary["num_substitution"]) * 100, 2
         )
         summary["remaining_mutations"] = (
-            summary["num_mutations_faa"] - summary["num_mutations_scored"]
+            summary["num_substitution"] - summary["num_mutations"]
         )
 
         summary = summary.merge(logs, on="index", how="left")
@@ -636,8 +638,8 @@ class Status:
                 self.get_summary(),
                 sep="\t",
                 dtype={
-                    "num_mutations_faa": int,
-                    "num_mutations_scored": int,
+                    "num_substitution": int,
+                    "num_mutations": int,
                     "percent": float,
                 },
             )
@@ -664,35 +666,33 @@ class Status:
 
         gene_summary = (
             summary.groupby("ID")[
-                ["num_mutations_scored", "remaining_mutations", "num_mutations_faa"]
+                ["num_mutations", "remaining_mutations", "num_substitution"]
             ]
             .sum()
             .reset_index()
         )
         gene_summary["percent"] = round(
-            (gene_summary["num_mutations_scored"] / gene_summary["num_mutations_faa"])
-            * 100,
+            (gene_summary["num_mutations"] / gene_summary["num_substitution"]) * 100,
             2,
         )
         # print (gene_summary)
 
         job_summary = (
             summary.groupby("index")[
-                ["num_mutations_scored", "remaining_mutations", "num_mutations_faa"]
+                ["num_mutations", "remaining_mutations", "num_substitution"]
             ]
             .sum()
             .reset_index()
         )
         job_summary["percent"] = round(
-            (job_summary["num_mutations_scored"] / job_summary["num_mutations_faa"])
-            * 100,
+            (job_summary["num_mutations"] / job_summary["num_substitution"]) * 100,
             2,
         )
         # print (job_summary)
         print(
             f"""
     ===== Mutation Summary =====
-    Scored Mutations:    {sum(summary['num_mutations_scored'])}
+    Scored Mutations:    {sum(summary['num_mutations'])}
     Remaining Mutations: {sum(summary['remaining_mutations'])}
 
     ===== Job Summary =====
