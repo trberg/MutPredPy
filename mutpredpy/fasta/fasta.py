@@ -116,6 +116,9 @@ class Protein:
                 if re.match(pattern, found_protein) and id_type not in detected_order:
                     detected_order.append(id_type)
 
+        if len(detected_order) == 0:
+            return None
+
         output[detected_order] = output["ID"].str.split("|", expand=True)
 
         for det in detected_order:
